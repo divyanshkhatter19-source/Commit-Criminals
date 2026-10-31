@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRIAGE LUMEN // Evidence-Based AI Triage Platform</title>
+
+  <!-- Plus Jakarta Sans, Syne & JetBrains Mono Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <!-- Three.js for 3D Glass Refraction Caustics -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Anime.js for smooth tactile micro-interactions -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+
+  <style>
+    :root {
+      --bg-base: #06080e;
+      --glass-surface: rgba(255, 255, 255, 0.04);
+      --glass-surface-hover: rgba(255, 255, 255, 0.08);
+      --glass-surface-elevated: rgba(255, 255, 255, 0.07);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-border-light: rgba(255, 255, 255, 0.24);
+      --glass-highlight: rgba(255, 255, 255, 0.06);
+
+      --accent-cyan: #5de8e5;
+      --accent-violet: #a777ff;
+      --accent-emerald: #4eed99;
+      --accent-amber: #ffb86c;
+      --accent-red: #ff5f56;
+      --text-main: #f4f6fc;
+      --text-muted: #949ab3;
+      --text-sub: #5f657d;
+
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-display: 'Syne', 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      --radius-sm: 8px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --radius-pill: 9999px;
+
+      /* Backend URL — no API keys here, all auth is server-side via env vars */
+      --api-base: http://127.0.0.1:8080;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+    }
+
+    /* ── AURORA BACKGROUND ─────────────────────────────── */
+    .aurora-container {
+      position: fixed; inset: 0; z-index: 0;
+      pointer-events: none; overflow: hidden;
+    }
+    .aurora-orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(90px); opacity: 0.55; will-change: transform;
+    }
+    .orb-1 {
+      top: -10%; left: 15%; width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(93,232,229,0.35) 0%, rgba(93,232,229,0) 70%);
+      animation: floatOrb1 20s infinite alternate ease-in-out;
+    }
+    .orb-2 {
+      top: 35%; right: 5%; width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(167,119,255,0.3) 0%, rgba(167,119,255,0) 70%);
+      animation: floatOrb2 24s infinite alternate ease-in-out;
+    }
+    .orb-3 {
+      bottom: -15%; left: 25%; width: 650px; height: 650px;
+      background: radial-gradient(circle, rgba(78,237,153,0.22) 0%, rgba(78,237,153,0) 70%);
+      animation: floatOrb3 22s infinite alternate ease-in-out;
+    }
+
+    @keyframes floatOrb1 {
+      0%   { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(120px, 140px) scale(1.15); }
+    }
+    @keyframes floatOrb2 {
+      0%   { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(-140px, -90px) scale(1.2); }
+    }
+    @keyframes floatOrb3 {
+      0%   { transform: translate(0, 0) scale(1.1); }
+      100% { transform: translate(80px, -110px) scale(0.95); }
+    }
+
+    .bg-grid-overlay {
+      position: fixed; inset: 0;
+      background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.06) 1px, transparent 0);
+      background-size: 36px 36px; pointer-events: none; z-index: 1;
+    }
+
+    #hero-canvas-container {
+      position: fixed; inset: 0; z-index: 2;
+      pointer-events: none; opacity: 0.42;
+    }
+
+    #glass-cursor-glow {
+      position: fixed; width: 500px; height: 500px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 65%);
+      pointer-events: none; transform: translate(-50%, -50%); z-index: 2;
+      transition: width 0.3s, height 0.3s;
+    }
+
+    /* ── GLASS PRIMITIVES ──────────────────────────────── */
+    .glass-card {
+      background: var(--glass-surface);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border); border-radius: var(--radius-md);
+      box-shadow: 0 16px 40px -12px rgba(0,0,0,0.45), inset 0 1px 0 0 rgba(255,255,255,0.15);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative; overflow: hidden;
+    }
+    .glass-card::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.08), transparent 40%);
+      pointer-events: none; opacity: 0; transition: opacity 0.4s ease;
+    }
+    .glass-card:hover {
+      background: var(--glass-surface-hover); border-color: var(--glass-border-light);
+      transform: translateY(-3px);
+      box-shadow: 0 24px 50px -10px rgba(0,0,0,0.6), 0 0 25px rgba(93,232,229,0.1), inset 0 1px 0 0 rgba(255,255,255,0.25);
+    }
+    .glass-card:hover::before { opacity: 1; }
+
+    .glass-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: var(--radius-pill);
+      background: rgba(255,255,255,0.05); backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,0.14);
+      font-size: 12px; font-family: var(--font-mono); color: var(--text-muted);
+    }
+
+    .glass-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 12px 24px; border-radius: var(--radius-pill);
+      font-family: var(--font-sans); font-size: 14px; font-weight: 500;
+      text-decoration: none; cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      border: none; outline: none;
+    }
+    .glass-btn-primary {
+      background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(220,235,255,0.85));
+      color: #06080e; box-shadow: 0 8px 24px -4px rgba(93,232,229,0.35); font-weight: 600;
+    }
+    .glass-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px -4px rgba(93,232,229,0.6); background: #ffffff;
+    }
+    .glass-btn-primary:disabled {
+      opacity: 0.45; cursor: not-allowed; transform: none;
+    }
+    .glass-btn-ghost {
+      background: rgba(255,255,255,0.05); backdrop-filter: blur(16px);
+      color: var(--text-main); border: 1px solid var(--glass-border);
+    }
+    .glass-btn-ghost:hover {
+      background: rgba(255,255,255,0.1); border-color: var(--glass-border-light);
+      transform: translateY(-2px);
+    }
+    .glass-btn-ghost:disabled {
+      opacity: 0.35; cursor: not-allowed; transform: none;
+    }
+
+    /* ── TERMINAL BOOT STAGE ───────────────────────────── */
+    #terminal-intro-stage {
+      position: fixed; inset: 0; z-index: 9999;
+      background: radial-gradient(circle at center, rgba(10,14,24,0.96) 0%, rgba(4,6,12,0.99) 100%);
+      backdrop-filter: blur(36px); -webkit-backdrop-filter: blur(36px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px; transition: all 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #terminal-intro-stage.boot-complete {
+      transform: translateY(-100%) scale(1.04); opacity: 0; pointer-events: none;
+    }
+    .terminal-intro-box {
+      max-width: 780px; width: 100%;
+      background: rgba(14,20,32,0.82); border: 1px solid rgba(93,232,229,0.3);
+      border-radius: var(--radius-md);
+      box-shadow: 0 24px 60px -15px rgba(0,0,0,0.85), 0 0 35px rgba(93,232,229,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+      padding: 32px 36px; position: relative; overflow: hidden;
+    }
+    .terminal-intro-box::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-violet), transparent);
+      animation: scanBeam 2.5s infinite linear;
+    }
+    @keyframes scanBeam {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .terminal-intro-head {
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 14px; margin-bottom: 22px;
+      font-family: var(--font-mono); font-size: 11px; color: var(--accent-cyan);
+      letter-spacing: 0.1em;
+    }
+    .terminal-dots { display: flex; gap: 6px; }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .terminal-dot.red    { background: #ff5f56; }
+    .terminal-dot.yellow { background: #ffbd2e; }
+    .terminal-dot.green  { background: #27c93f; }
+
+    .terminal-stream-log {
+      font-family: var(--font-mono); font-size: 13px; color: #949ab3;
+      line-height: 1.7; min-height: 180px; margin-bottom: 24px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .terminal-stream-log .log-line {
+      display: flex; align-items: center; gap: 10px;
+      opacity: 0; transform: translateX(-8px); transition: all 0.25s ease-out;
+    }
+    .terminal-stream-log .log-line.active { opacity: 1; transform: translateX(0); }
+    .terminal-stream-log .tag-ok   { color: var(--accent-emerald); font-weight: 600; }
+    .terminal-stream-log .tag-warp { color: var(--accent-cyan); font-weight: 600; }
+    .terminal-stream-log .tag-core { color: var(--accent-violet); font-weight: 600; }
+
+    .terminal-prompt-footer {
+      display: flex; justify-content: space-between; align-items: center;
+      border-top: 1px solid rgba(255,255,255,0.08); padding-top: 18px;
+    }
+    .kbd-shortcut {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+      padding: 4px 10px; border-radius: 6px;
+      font-family: var(--font-mono); font-size: 11px; color: var(--text-main);
+    }
+
+    /* ── LAYOUT ────────────────────────────────────────── */
+    .app-viewport {
+      position: relative; z-index: 10;
+      max-width: 1280px; margin: 0 auto; padding: 0 24px;
+    }
+
+    .floating-nav {
+      position: sticky; top: 20px; margin-top: 20px; margin-bottom: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 24px;
+      background: rgba(14,18,28,0.65); backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius-pill);
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5); z-index: 100;
+    }
+    .brand-group {
+      display: flex; align-items: center; gap: 12px;
+      text-decoration: none; color: inherit;
+    }
+    .brand-mark {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 16px rgba(93,232,229,0.4);
+    }
+    .brand-mark svg { width: 18px; height: 18px; fill: #06080e; }
+    .brand-title { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+    .brand-title span { color: var(--accent-cyan); }
+
+    .nav-links { display: flex; align-items: center; gap: 28px; list-style: none; }
+    .nav-links a {
+      color: var(--text-muted); text-decoration: none;
+      font-size: 13px; font-weight: 500; transition: color 0.2s ease;
+    }
+    .nav-links a:hover { color: var(--text-main); }
+
+    /* ── HERO ───────────────────────────────────────────── */
+    .hero-section {
+      min-height: 72vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 40px 0 60px;
+      position: relative;
+    }
+
+    /* Ambient soft vignette behind hero text to guarantee 100% crystal-clear readability */
+    .hero-section::before {
+      content: "";
+      position: absolute;
+      top: 14%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(920px, 94vw);
+      height: 420px;
+      background: radial-gradient(ellipse at center, rgba(6, 8, 14, 0.85) 0%, rgba(6, 8, 14, 0.5) 60%, transparent 80%);
+      pointer-events: none;
+      z-index: -1;
+      filter: blur(28px);
+    }
+
+    .hero-pill-badge {
+      margin-bottom: 20px; border: 1px solid rgba(93,232,229,0.3);
+      background: rgba(93,232,229,0.08); color: var(--accent-cyan);
+    }
+    .pulse-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan);
+      animation: pulseGlow 2s infinite ease-in-out;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { transform: scale(0.9); opacity: 0.6; }
+      50%       { transform: scale(1.3); opacity: 1; }
+    }
+
+    /* Project Name Heading */
+    .project-title {
+      font-family: var(--font-display);
+      font-size: clamp(52px, 8.5vw, 96px);
+      font-weight: 800;
+      line-height: 1.04;
+      letter-spacing: -0.04em;
+      margin-bottom: 16px;
+      text-shadow: 0 4px 30px rgba(0, 0, 0, 0.95);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .project-title .title-ai {
+      background: linear-gradient(135deg, #38bdf8 0%, #0284c7 45%, #1e40af 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 24px rgba(2, 132, 199, 0.55));
+    }
+
+    .project-title .title-triage {
+      background: linear-gradient(135deg, #c084fc 0%, #8b5cf6 40%, #581c87 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 28px rgba(139, 92, 246, 0.5));
+    }
+
+    .project-title .gradient-text {
+      background: linear-gradient(135deg, #0284c7 0%, #38bdf8 25%, #8b5cf6 65%, #4c1d95 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 4px 28px rgba(59, 130, 246, 0.45));
+    }
+
+    /* Small Tagline Capsule */
+    .project-tagline {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: clamp(12px, 1.25vw, 14px);
+      font-weight: 600;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      padding: 6px 20px;
+      margin-bottom: 24px;
+      background: rgba(93, 232, 229, 0.06);
+      border: 1px solid rgba(93, 232, 229, 0.24);
+      border-radius: var(--radius-pill);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      text-shadow: 0 1px 8px rgba(93, 232, 229, 0.4);
+      transition: all 0.3s ease;
+    }
+    .project-tagline:hover {
+      border-color: rgba(93, 232, 229, 0.45);
+      background: rgba(93, 232, 229, 0.1);
+      box-shadow: 0 6px 24px rgba(93, 232, 229, 0.2);
+    }
+    .tagline-bullet {
+      font-size: 8px;
+      color: var(--accent-violet);
+    }
+
+    .hero-description {
+      font-size: clamp(15px, 1.6vw, 18px); color: var(--text-muted);
+      max-width: 680px; margin-bottom: 36px; font-weight: 400;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+    }
+
+    /* ── SUBMIT FORM ─────────────────────────────────────── */
+    .submit-form-wrap {
+      width: 100%; max-width: 740px; margin-bottom: 48px;
+    }
+    .submit-form-card {
+      padding: 28px 32px;
+    }
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;
+    }
+    .form-col { display: flex; flex-direction: column; gap: 6px; }
+    .form-full { grid-column: 1 / -1; }
+    label {
+      font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .glass-input, .glass-textarea, .glass-select {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius-sm); color: var(--text-main);
+      font-family: var(--font-sans); font-size: 14px;
+      padding: 10px 14px; outline: none; width: 100%;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      resize: none;
+    }
+    .glass-input:focus, .glass-textarea:focus, .glass-select:focus {
+      border-color: rgba(93,232,229,0.5);
+      box-shadow: 0 0 0 2px rgba(93,232,229,0.12);
+    }
+    .glass-input::placeholder, .glass-textarea::placeholder { color: var(--text-sub); }
+    .glass-select option { background: #0d1120; color: var(--text-main); }
+    .glass-textarea { min-height: 90px; line-height: 1.5; }
+    .form-row-actions {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .form-status-pill {
+      font-family: var(--font-mono); font-size: 11px; color: var(--text-sub);
+    }
+
+    /* ── STAT BANNER ─────────────────────────────────────── */
+    .stat-banner {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 18px; width: 100%; margin-bottom: 72px;
+    }
+    .stat-card { padding: 24px; text-align: left; }
+    .stat-val {
+      font-size: 30px; font-weight: 700; letter-spacing: -0.03em;
+      margin-bottom: 4px; font-family: var(--font-mono);
+      background: linear-gradient(135deg, #fff, var(--text-muted));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .stat-label {
+      font-size: 11px; color: var(--text-sub); text-transform: uppercase;
+      letter-spacing: 0.05em; font-weight: 600;
+    }
+
+    /* ── SECTION HEADER ─────────────────────────────────── */
+    .section-header { text-align: center; margin-bottom: 48px; }
+    .section-tag {
+      font-family: var(--font-mono); color: var(--accent-cyan); font-size: 12px;
+      text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;
+      display: inline-block;
+    }
+    .section-title {
+      font-family: var(--font-display); font-size: clamp(26px, 3.2vw, 40px);
+      font-weight: 700; letter-spacing: -0.03em;
+    }
+
+    /* ── PIPELINE PROGRESS ─────────────────────────────── */
+    .pipeline-section { margin-bottom: 80px; }
+    .pipeline-console { padding: 32px; }
+    .console-header {
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 16px; margin-bottom: 24px;
+    }
+    .console-label {
+      font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+      color: var(--accent-cyan);
+    }
+
+    .agent-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin-bottom: 24px;
+    }
+    .agent-chip {
+      padding: 12px 14px; border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+      font-family: var(--font-mono); font-size: 11px; color: var(--text-sub);
+      display: flex; align-items: center; gap: 8px;
+      transition: all 0.3s ease;
+    }
+    .agent-chip .chip-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--text-sub); flex-shrink: 0;
+      transition: all 0.3s ease;
+    }
+    .agent-chip.running {
+      background: rgba(93,232,229,0.08); border-color: rgba(93,232,229,0.3);
+      color: var(--accent-cyan);
+    }
+    .agent-chip.running .chip-dot {
+      background: var(--accent-cyan); box-shadow: 0 0 6px var(--accent-cyan);
+      animation: pulseGlow 1.2s infinite;
+    }
+    .agent-chip.done {
+      background: rgba(78,237,153,0.06); border-color: rgba(78,237,153,0.2);
+      color: var(--accent-emerald);
+    }
+    .agent-chip.done .chip-dot { background: var(--accent-emerald); }
+    .agent-chip.error {
+      background: rgba(255,95,86,0.07); border-color: rgba(255,95,86,0.25);
+      color: var(--accent-red);
+    }
+    .agent-chip.error .chip-dot { background: var(--accent-red); }
+
+    .chip-latency {
+      margin-left: auto; font-size: 10px; color: var(--text-sub); white-space: nowrap;
+    }
+
+    .sse-log {
+      background: rgba(6,8,14,0.7); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius-sm); padding: 16px;
+      font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);
+      line-height: 1.7; max-height: 200px; overflow-y: auto;
+    }
+    .sse-log .sse-entry { display: flex; gap: 10px; }
+    .sse-log .sse-time  { color: var(--text-sub); flex-shrink: 0; }
+    .sse-log .sse-type  { color: var(--accent-violet); flex-shrink: 0; }
+    .sse-log .sse-msg   { color: var(--text-muted); }
+
+    /* ── ANALYSES LIST ───────────────────────────────────── */
+    .analyses-section { margin-bottom: 80px; }
+    .analyses-list { display: flex; flex-direction: column; gap: 12px; }
+    .analysis-row {
+      padding: 18px 22px; display: flex; align-items: center; gap: 16px; cursor: pointer;
+    }
+    .analysis-row:hover { transform: translateY(-2px); }
+    .analysis-state-badge {
+      padding: 4px 10px; border-radius: var(--radius-pill);
+      font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em; flex-shrink: 0;
+    }
+    .state-queued    { background: rgba(255,184,108,0.15); color: var(--accent-amber); border: 1px solid rgba(255,184,108,0.3); }
+    .state-running   { background: rgba(93,232,229,0.12);  color: var(--accent-cyan);  border: 1px solid rgba(93,232,229,0.3); }
+    .state-completed { background: rgba(78,237,153,0.1);   color: var(--accent-emerald); border: 1px solid rgba(78,237,153,0.25); }
+    .state-failed    { background: rgba(255,95,86,0.1);    color: var(--accent-red);   border: 1px solid rgba(255,95,86,0.25); }
+
+    .analysis-title { font-size: 14px; font-weight: 500; flex: 1; min-width: 0; }
+    .analysis-title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .analysis-meta { font-size: 11px; color: var(--text-sub); font-family: var(--font-mono); flex-shrink: 0; }
+
+    /* ── REPORT PANEL ────────────────────────────────────── */
+    .report-section { margin-bottom: 80px; }
+    .report-panel { padding: 32px; }
+    .report-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; margin-bottom: 28px; flex-wrap: wrap;
+    }
+    .report-title-group { flex: 1; }
+    .report-title { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .report-meta { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+
+    .claims-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    .claims-table th {
+      text-align: left; font-size: 11px; font-family: var(--font-mono);
+      text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-sub);
+      border-bottom: 1px solid rgba(255,255,255,0.08); padding: 8px 12px;
+    }
+    .claims-table td {
+      padding: 10px 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .conf-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    }
+    .conf-high   { background: rgba(78,237,153,0.15);  color: var(--accent-emerald); }
+    .conf-medium { background: rgba(255,184,108,0.15); color: var(--accent-amber); }
+    .conf-low    { background: rgba(255,95,86,0.12);   color: var(--accent-red); }
+
+    .status-text { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+
+    .report-markdown {
+      background: rgba(6,8,14,0.6); border: 1px solid rgba(255,255,255,0.07);
+      border-radius: var(--radius-sm); padding: 20px;
+      font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);
+      line-height: 1.8; white-space: pre-wrap; max-height: 360px; overflow-y: auto;
+    }
+
+    /* ── CHAT ASSISTANT ──────────────────────────────────── */
+    .chat-section { margin-bottom: 80px; }
+    .chat-console { padding: 28px; }
+    .chat-messages {
+      min-height: 160px; max-height: 320px; overflow-y: auto;
+      margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .chat-msg {
+      padding: 10px 14px; border-radius: var(--radius-sm);
+      font-size: 13px; line-height: 1.6; max-width: 88%;
+    }
+    .chat-msg.user {
+      background: rgba(93,232,229,0.1); border: 1px solid rgba(93,232,229,0.2);
+      color: var(--text-main); align-self: flex-end;
+    }
+    .chat-msg.assistant {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text-muted); align-self: flex-start;
+    }
+    .chat-msg.system {
+      background: rgba(167,119,255,0.07); border: 1px solid rgba(167,119,255,0.2);
+      color: var(--accent-violet); align-self: center; font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .chat-input-row {
+      display: flex; gap: 10px; align-items: flex-end;
+    }
+    .chat-input-row .glass-input { flex: 1; }
+
+    /* ── FEATURES ────────────────────────────────────────── */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 24px; margin-bottom: 80px;
+    }
+    .feature-card { padding: 32px 28px; }
+    .feature-icon-box {
+      width: 44px; height: 44px; border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 20px; box-shadow: 0 8px 16px -4px rgba(0,0,0,0.3);
+    }
+    .feature-icon-box svg { width: 22px; height: 22px; stroke: var(--accent-cyan); }
+    .feature-title { font-size: 17px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em; }
+    .feature-desc  { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+    /* ── FOOTER ──────────────────────────────────────────── */
+    .glass-footer {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 32px 0 52px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; color: var(--text-sub);
+    }
+
+    /* ── TOAST ───────────────────────────────────────────── */
+    #glass-toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: rgba(14,18,28,0.85); backdrop-filter: blur(20px);
+      border: 1px solid rgba(93,232,229,0.4); color: var(--accent-cyan);
+      font-family: var(--font-mono); font-size: 12px;
+      padding: 10px 18px; border-radius: var(--radius-pill);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 1000; display: none;
+    }
+
+    /* ── EMPTY STATE ─────────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 40px 20px; color: var(--text-sub);
+      font-family: var(--font-mono); font-size: 13px;
+    }
+    .empty-state-icon { font-size: 28px; margin-bottom: 10px; }
+
+    /* ── RESPONSIVE ──────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .stat-banner      { grid-template-columns: repeat(2, 1fr); }
+      .features-grid    { grid-template-columns: 1fr; }
+      .agent-grid       { grid-template-columns: repeat(2, 1fr); }
+      .form-grid        { grid-template-columns: 1fr; }
+      .nav-links        { display: none; }
+    }
+    @media (max-width: 560px) {
+      .stat-banner      { grid-template-columns: 1fr; }
+      .agent-grid       { grid-template-columns: 1fr; }
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+  </style>
+</head>
+
+<body>
+
+  <!-- Aurora Background -->
+  <div class="aurora-container">
+    <div class="aurora-orb orb-1"></div>
+    <div class="aurora-orb orb-2"></div>
+    <div class="aurora-orb orb-3"></div>
+  </div>
+  <div class="bg-grid-overlay"></div>
+  <div id="glass-cursor-glow"></div>
+  <div id="hero-canvas-container"></div>
+
+  <!-- Terminal Boot Overlay -->
+  <div id="terminal-intro-stage">
+    <div class="terminal-intro-box">
+      <div class="terminal-intro-head">
+        <div class="terminal-dots">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+        </div>
+        <span>TRIAGE_OS // BOOT_SEQUENCE: 0x9A3F</span>
+        <span>STATUS: PIPELINE_READY</span>
+      </div>
+
+      <div class="terminal-stream-log" id="boot-log-container">
+        <div class="log-line" id="line-1"><span class="tag-core">[SYS_INIT]</span> Loading 9-agent evidence pipeline...</div>
+        <div class="log-line" id="line-2"><span class="tag-warp">[DB_READY]</span> SQLite WAL mode engaged — concurrent SSE readers online...</div>
+        <div class="log-line" id="line-3"><span class="tag-ok">[BEND_KERN]</span> Bend aggregation kernels materialized to workspace...</div>
+        <div class="log-line" id="line-4"><span class="tag-core">[SECURITY]</span> Prompt-injection guard active — untrusted input isolated...</div>
+        <div class="log-line" id="line-5"><span class="tag-warp">[API_LIVE]</span> REST + SSE endpoints live on http://127.0.0.1:8080...</div>
+        <div class="log-line" id="line-6"><span class="tag-ok">[VAULT]</span> Secrets locked in environment — zero keys in frontend.</div>
+        <div class="log-line" id="line-7"><span class="tag-ok">[READY]</span> Evidence-Based Triage Console ignited. Press ENTER to proceed.</div>
+      </div>
+
+      <div class="terminal-prompt-footer">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">Press</span>
+          <span class="kbd-shortcut">ENTER ↵</span>
+          <span style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">or click to launch dashboard</span>
+        </div>
+        <button class="glass-btn glass-btn-primary" id="btn-enter-terminal" style="padding: 10px 22px;">
+          Launch Triage →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div class="app-viewport">
+
+    <!-- Floating Nav -->
+    <header class="floating-nav">
+      <a href="#" class="brand-group">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+        <div class="brand-title">TRIAGE <span>LUMEN</span></div>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#submit">Submit</a></li>
+        <li><a href="#pipeline">Pipeline</a></li>
+        <li><a href="#analyses">Analyses</a></li>
+        <li><a href="#report">Report</a></li>
+        <li><a href="#assistant">Assistant</a></li>
+      </ul>
+
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <div class="glass-pill" id="backend-status-pill" style="cursor:pointer;" onclick="checkBackendHealth()">
+          <div class="pulse-dot" id="status-dot" style="background: var(--text-sub); box-shadow: none;"></div>
+          <span id="backend-status-text">CHECKING</span>
+        </div>
+        <button class="glass-btn glass-btn-ghost" id="btn-load-sample" onclick="loadSampleIssue()">Load Sample</button>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero-section">
+      <div class="glass-pill hero-pill-badge">
+        <div class="pulse-dot"></div>
+        <span>9 AGENTS // 11-PHASE WORKFLOW // SSE LIVE</span>
+      </div>
+
+      <h1 class="project-title">
+        <span class="title-ai">AI</span> <span class="title-triage">Triage</span>
+      </h1>
+
+      <div class="project-tagline">
+        <span class="tagline-bullet">◆</span>
+        <span>No Secrets. Fully Transparent.</span>
+        <span class="tagline-bullet">◆</span>
+      </div>
+
+      <p class="hero-description">
+        Submit a GitHub issue or PR, watch 9 interconnected AI agents collect evidence in real-time,
+        then get a grounded, cited triage report — all without any API key in the browser.
+      </p>
+
+      <!-- Submit Form -->
+      <div class="submit-form-wrap" id="submit">
+        <div class="glass-card submit-form-card">
+          <div class="form-grid">
+            <div class="form-col">
+              <label>Repository (owner/name)</label>
+              <input class="glass-input" id="f-repo" type="text"
+                placeholder="octocat/hello-world" value="octocat/hello-world">
+            </div>
+            <div class="form-col">
+              <label>Subject Type</label>
+              <select class="glass-select" id="f-type">
+                <option value="issue">Issue</option>
+                <option value="pull_request">Pull Request</option>
+              </select>
+            </div>
+            <div class="form-col">
+              <label>Subject Number (optional)</label>
+              <input class="glass-input" id="f-number" type="number" placeholder="e.g. 4211">
+            </div>
+            <div class="form-col">
+              <label>Reported Version (optional)</label>
+              <input class="glass-input" id="f-version" type="text" placeholder="e.g. 2.4.1">
+            </div>
+            <div class="form-col form-full">
+              <label>Title</label>
+              <input class="glass-input" id="f-title" type="text"
+                placeholder="Crash on empty payload: AttributeError in webhook handler">
+            </div>
+            <div class="form-col form-full">
+              <label>Body / Description</label>
+              <textarea class="glass-textarea" id="f-body"
+                placeholder="Steps to reproduce, expected vs observed behavior, environment info..."></textarea>
+            </div>
+          </div>
+          <div class="form-row-actions">
+            <span class="form-status-pill" id="form-status">Ready to submit</span>
+            <button class="glass-btn glass-btn-primary" id="btn-submit" onclick="submitAnalysis()">
+              Start Triage Analysis →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
+        <span class="glass-pill">9 AI AGENTS</span>
+        <span class="glass-pill">ZERO KEYS IN BROWSER</span>
+        <span class="glass-pill">SSE LIVE PROGRESS</span>
+        <span class="glass-pill">GROUNDED CITATIONS</span>
+      </div>
+    </section>
+
+    <!-- Live Stats Banner -->
+    <div class="stat-banner" id="metrics">
+      <div class="glass-card stat-card">
+        <div class="stat-val" id="stat-total">—</div>
+        <div class="stat-label">Total Analyses</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="stat-val" id="stat-completed">—</div>
+        <div class="stat-label">Completed</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="stat-val" id="stat-agents">9</div>
+        <div class="stat-label">Agent Roster</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="stat-val" id="stat-phases">11</div>
+        <div class="stat-label">Pipeline Phases</div>
+      </div>
+    </div>
+
+    <!-- Pipeline Console -->
+    <section class="pipeline-section" id="pipeline">
+      <div class="section-header">
+        <span class="section-tag">// LIVE PIPELINE TELEMETRY</span>
+        <h2 class="section-title">Real-Time Agent Execution</h2>
+      </div>
+
+      <div class="glass-card pipeline-console">
+        <div class="console-header">
+          <span class="console-label">// AGENT EXECUTION GRID</span>
+          <span class="glass-pill" id="pipeline-status-pill">IDLE</span>
+        </div>
+
+        <div class="agent-grid" id="agent-grid">
+          <!-- Populated by JS -->
+        </div>
+
+        <div class="sse-log" id="sse-log">
+          <div class="sse-entry">
+            <span class="sse-type">[INFO]</span>
+            <span class="sse-msg">Submit an analysis to stream live pipeline events here...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Analyses List -->
+    <section class="analyses-section" id="analyses">
+      <div class="section-header">
+        <span class="section-tag">// ANALYSIS HISTORY</span>
+        <h2 class="section-title">Recent Triage Jobs</h2>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+        <button class="glass-btn glass-btn-ghost" onclick="loadAnalysesList()" style="font-size: 12px; padding: 8px 18px;">
+          ↻ Refresh
+        </button>
+      </div>
+
+      <div class="analyses-list" id="analyses-list">
+        <div class="glass-card" style="padding: 24px;">
+          <div class="empty-state">
+            <div class="empty-state-icon">⚡</div>
+            Backend connecting... Submit an analysis or click Refresh.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Report Viewer -->
+    <section class="report-section" id="report">
+      <div class="section-header">
+        <span class="section-tag">// TRIAGE REPORT VIEWER</span>
+        <h2 class="section-title">Evidence-Backed Assessment</h2>
+      </div>
+
+      <div class="glass-card report-panel" id="report-panel">
+        <div class="empty-state">
+          <div class="empty-state-icon">📋</div>
+          Select a completed analysis above to view its report.
+        </div>
+      </div>
+    </section>
+
+    <!-- AI Assistant -->
+    <section class="chat-section" id="assistant">
+      <div class="section-header">
+        <span class="section-tag">// FETCH.AI-STYLE GROUNDED ASSISTANT</span>
+        <h2 class="section-title">Ask About Any Analysis</h2>
+      </div>
+
+      <div class="glass-card chat-console">
+        <div class="console-header">
+          <span class="console-label">// TRIAGE ASSISTANT — grounded, cited, injection-safe</span>
+          <span class="glass-pill" id="chat-analysis-pill">No analysis selected</span>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-msg system">
+            Select a completed analysis from the list above, then ask questions.
+            The assistant answers strictly from evidence — no hallucinations.
+          </div>
+        </div>
+
+        <div class="chat-input-row">
+          <input class="glass-input" id="chat-input" type="text"
+            placeholder="Which claims are confirmed? What evidence is missing?" style="flex: 1;">
+          <button class="glass-btn glass-btn-primary" id="btn-chat" onclick="sendChat()" style="padding: 10px 20px;">
+            Ask →
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Grid -->
+    <section id="features" style="margin-bottom: 80px;">
+      <div class="section-header">
+        <span class="section-tag">// SYSTEM ARCHITECTURE</span>
+        <h2 class="section-title">Built with Security by Design</h2>
+      </div>
+
+      <div class="features-grid">
+        <div class="glass-card feature-card">
+          <div>
+            <div class="feature-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <h3 class="feature-title">Zero Keys in Browser</h3>
+            <p class="feature-desc">
+              All API keys, tokens, and secrets live exclusively in server environment variables.
+              The frontend never touches credentials — all auth is server-side.
+            </p>
+          </div>
+        </div>
+
+        <div class="glass-card feature-card">
+          <div>
+            <div class="feature-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+              </svg>
+            </div>
+            <h3 class="feature-title">9 Interconnected Agents</h3>
+            <p class="feature-desc">
+              Claim extraction, evidence planning, context resolution, parallel collection,
+              reproduction, security, contradiction, synthesis, and maintainer response — all traced.
+            </p>
+          </div>
+        </div>
+
+        <div class="glass-card feature-card">
+          <div>
+            <div class="feature-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+              </svg>
+            </div>
+            <h3 class="feature-title">Prompt-Injection Guard</h3>
+            <p class="feature-desc">
+              All untrusted repository text is wrapped as data, never instructions.
+              14 injection patterns are scanned before any LLM sees input.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="glass-footer">
+      <div>© 2026 TRIAGE LUMEN // Evidence-Based AI Triage System</div>
+      <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+        <span class="glass-pill" id="footer-backend">BACKEND: —</span>
+        <span class="glass-pill">SSE STREAMING</span>
+        <span class="glass-pill">NO KEYS IN BROWSER</span>
+      </div>
+    </footer>
+
+  </div><!-- /.app-viewport -->
+
+  <div id="glass-toast">Message</div>
+
+  <script>
+    /* =========================================================
+       CONFIG — only the backend origin lives here, NO secrets.
+       The backend handles all auth via environment variables.
+    ========================================================= */
+    const API = 'http://127.0.0.1:8080';
+
+    /* =========================================================
+       GLOBAL STATE
+    ========================================================= */
+    let activeAnalysisId = null;   // currently selected for report + chat
+    let activeEventSource = null;  // SSE connection
+    const agentStates = {};        // agent name -> {status, latency}
+
+    const AGENT_NAMES = [
+      'claim_extraction', 'evidence_planning', 'context_resolution',
+      'repository_research', 'reproduction', 'security',
+      'contradiction', 'synthesis', 'maintainer_response'
+    ];
+
+    /* =========================================================
+       TERMINAL BOOT
+    ========================================================= */
+    const introStage = document.getElementById('terminal-intro-stage');
+    const logLines = Array.from({length: 7}, (_, i) => document.getElementById(`line-${i + 1}`));
+    logLines.forEach((line, idx) => {
+      setTimeout(() => line && line.classList.add('active'), 160 * (idx + 1));
+    });
+
+    let introDismissed = false;
+    function triggerHyperdriveTransition() {
+      if (introDismissed) return;
+      introDismissed = true;
+      if (window._glassScene) {
+        anime({ targets: window._glassScene.heroGroup.position, z: [18, 0], duration: 950, easing: 'easeOutExpo' });
+        anime({ targets: window._glassScene.innerCore.scale, x: [3, 1], y: [3, 1], z: [3, 1], duration: 800, easing: 'easeOutElastic(1, .6)' });
+      }
+      introStage.classList.add('boot-complete');
+      showToast('TRIAGE CONSOLE ONLINE // Pipeline Ready');
+      checkBackendHealth();
+      loadAnalysesList();
+      initAgentGrid();
+    }
+
+    document.getElementById('btn-enter-terminal').addEventListener('click', triggerHyperdriveTransition);
+    window.addEventListener('keydown', e => { if (e.key === 'Enter' && !introDismissed) triggerHyperdriveTransition(); });
+
+    /* =========================================================
+       3D SPATIAL TOPOLOGY & HOLOGRAPHIC PRISM (Three.js)
+       Designed with recessed depth so foreground text is crystal-clear
+    ========================================================= */
+    (function init3DGlassScene() {
+      const container = document.getElementById('hero-canvas-container');
+      if (!container || typeof THREE === 'undefined') return;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 0, 22);
+
+      const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      container.appendChild(renderer.domElement);
+
+      const heroGroup = new THREE.Group();
+      scene.add(heroGroup);
+
+      // ── 1. Recessed Floating Evidence Prism (Positioned in upper background z = -6) ──
+      const prismGroup = new THREE.Group();
+      prismGroup.position.set(0, 3.2, -6);
+      heroGroup.add(prismGroup);
+
+      // Inner core crystal
+      const innerCoreMat = new THREE.MeshBasicMaterial({
+        color: 0x5de8e5,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.35
+      });
+      const innerCore = new THREE.Mesh(new THREE.OctahedronGeometry(2.2, 1), innerCoreMat);
+      prismGroup.add(innerCore);
+
+      // Outer delicate faceted cage
+      const outerCageMat = new THREE.MeshBasicMaterial({
+        color: 0xa777ff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.2
+      });
+      const outerCage = new THREE.Mesh(new THREE.IcosahedronGeometry(3.6, 1), outerCageMat);
+      prismGroup.add(outerCage);
+
+      // Dual tilted gossamer orbit rings
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x5de8e5,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.16
+      });
+      const orbitRing1 = new THREE.Mesh(new THREE.TorusGeometry(5.2, 0.04, 12, 80), ringMat);
+      orbitRing1.rotation.x = Math.PI / 3;
+      prismGroup.add(orbitRing1);
+
+      const orbitRing2 = new THREE.Mesh(new THREE.TorusGeometry(6.4, 0.03, 12, 90), new THREE.MeshBasicMaterial({
+        color: 0x4eed99,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.14
+      }));
+      orbitRing2.rotation.y = -Math.PI / 4;
+      orbitRing2.rotation.x = Math.PI / 5;
+      prismGroup.add(orbitRing2);
+
+      // ── 2. Cybernetic Horizon Wave Topology (Tilted in the lower background) ──
+      const planeWidth = 64;
+      const planeHeight = 44;
+      const segW = 32;
+      const segH = 22;
+      const gridGeo = new THREE.PlaneGeometry(planeWidth, planeHeight, segW, segH);
+      const gridMat = new THREE.MeshBasicMaterial({
+        color: 0x5de8e5,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.14
+      });
+      const gridMesh = new THREE.Mesh(gridGeo, gridMat);
+      gridMesh.position.set(0, -7.5, -4);
+      gridMesh.rotation.x = -Math.PI / 2.25;
+      heroGroup.add(gridMesh);
+
+      // Store initial grid Z positions for smooth procedural undulating waves
+      const gridPos = gridGeo.attributes.position;
+      const originalZ = new Float32Array(gridPos.count);
+      for (let i = 0; i < gridPos.count; i++) {
+        originalZ[i] = gridPos.getZ(i);
+      }
+
+      // ── 3. Dispersed Peripheral Constellation Points (Leaves the center open) ──
+      const starCount = 450;
+      const starGeo = new THREE.BufferGeometry();
+      const starPos = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        // Distribute more toward the sides and background
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 8 + Math.random() * 16;
+        starPos[i * 3]     = Math.cos(angle) * radius;
+        starPos[i * 3 + 1] = (Math.random() - 0.4) * 16;
+        starPos[i * 3 + 2] = -8 + (Math.random() - 0.5) * 14;
+      }
+      starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+      const starMat = new THREE.PointsMaterial({
+        color: 0xdcf9f8,
+        size: 0.12,
+        transparent: true,
+        opacity: 0.4
+      });
+      const starPoints = new THREE.Points(starGeo, starMat);
+      heroGroup.add(starPoints);
+
+      // Mouse Parallax with smooth dampening
+      let mouseX = 0, mouseY = 0;
+      window.addEventListener('mousemove', e => {
+        mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+        mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+      });
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      window._glassScene = { speed: 0.32, heroGroup, innerCore };
+      const clock = new THREE.Clock();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const t = clock.getElapsedTime() * window._glassScene.speed;
+
+        // Gentle camera/group tilt following mouse
+        heroGroup.rotation.y += (mouseX * 0.15 - heroGroup.rotation.y) * 0.025;
+        heroGroup.rotation.x += (-mouseY * 0.10 - heroGroup.rotation.x) * 0.025;
+
+        // Animate floating evidence prism
+        innerCore.rotation.y = t * 0.45;
+        innerCore.rotation.z = t * 0.3;
+        const pulse = 1 + Math.sin(t * 1.4) * 0.06;
+        innerCore.scale.set(pulse, pulse, pulse);
+
+        outerCage.rotation.y = -t * 0.25;
+        outerCage.rotation.x = t * 0.2;
+
+        orbitRing1.rotation.z = t * 0.3;
+        orbitRing2.rotation.z = -t * 0.25;
+
+        // Undulate cybernetic terrain wave
+        for (let i = 0; i < gridPos.count; i++) {
+          const vx = gridPos.getX(i);
+          const vy = gridPos.getY(i);
+          const wave = Math.sin(vx * 0.22 + t * 1.8) * Math.cos(vy * 0.25 + t * 1.4) * 0.65;
+          gridPos.setZ(i, originalZ[i] + wave);
+        }
+        gridPos.needsUpdate = true;
+
+        // Slow peripheral stellar drift
+        starPoints.rotation.y = t * 0.05;
+
+        renderer.render(scene, camera);
+      }
+      animate();
+    })();
+
+    /* =========================================================
+       CURSOR GLOW + CARD SPECULAR
+    ========================================================= */
+    const cursorGlow = document.getElementById('glass-cursor-glow');
+    window.addEventListener('mousemove', e => {
+      cursorGlow.style.left = `${e.clientX}px`;
+      cursorGlow.style.top  = `${e.clientY}px`;
+      document.querySelectorAll('.glass-card').forEach(card => {
+        const rect = card.getBoundingClientRect();
+        card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+        card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+      });
+    });
+
+    /* =========================================================
+       TOAST
+    ========================================================= */
+    function showToast(msg) {
+      const toast = document.getElementById('glass-toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      anime({ targets: toast, opacity: [0, 1], translateY: [20, 0], duration: 280, easing: 'easeOutQuad' });
+      setTimeout(() => {
+        anime({ targets: toast, opacity: [1, 0], duration: 280, easing: 'easeInQuad',
+          complete: () => { toast.style.display = 'none'; } });
+      }, 2800);
+    }
+
+    /* =========================================================
+       BACKEND HEALTH
+    ========================================================= */
+    async function checkBackendHealth() {
+      const dot  = document.getElementById('status-dot');
+      const text = document.getElementById('backend-status-text');
+      const footerPill = document.getElementById('footer-backend');
+      try {
+        const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000) });
+        if (r.ok) {
+          dot.style.background  = 'var(--accent-emerald)';
+          dot.style.boxShadow   = '0 0 8px var(--accent-emerald)';
+          text.textContent      = 'BACKEND OK';
+          footerPill.textContent = 'BACKEND: ONLINE';
+          loadMetrics();
+        } else throw new Error('non-ok');
+      } catch {
+        dot.style.background  = 'var(--accent-red)';
+        dot.style.boxShadow   = '0 0 8px var(--accent-red)';
+        text.textContent      = 'BACKEND OFFLINE';
+        footerPill.textContent = 'BACKEND: OFFLINE';
+        showToast('Backend unreachable — start the Python server on :8080');
+      }
+    }
+
+    async function loadMetrics() {
+      try {
+        const txt = await fetch(`${API}/metrics`).then(r => r.text());
+        const total = parseInt((txt.match(/triage_jobs_total (\d+)/) || [])[1] || 0);
+        const done  = parseInt((txt.match(/triage_jobs_completed_total (\d+)/) || [])[1] || 0);
+        document.getElementById('stat-total').textContent     = total;
+        document.getElementById('stat-completed').textContent = done;
+      } catch {}
+    }
+
+    /* =========================================================
+       AGENT GRID INIT
+    ========================================================= */
+    function initAgentGrid() {
+      const grid = document.getElementById('agent-grid');
+      grid.innerHTML = AGENT_NAMES.map(name => `
+        <div class="agent-chip" id="chip-${name.replace(/_/g, '-')}">
+          <div class="chip-dot"></div>
+          <span class="chip-name">${name.replace(/_/g, '\u00A0')}</span>
+          <span class="chip-latency" id="lat-${name.replace(/_/g, '-')}"></span>
+        </div>
+      `).join('');
+    }
+
+    function resetAgentGrid() {
+      AGENT_NAMES.forEach(name => {
+        const id = name.replace(/_/g, '-');
+        const chip = document.getElementById(`chip-${id}`);
+        if (chip) { chip.className = 'agent-chip'; }
+        const lat = document.getElementById(`lat-${id}`);
+        if (lat) lat.textContent = '';
+      });
+    }
+
+    function markAgentRunning(agentName) {
+      const id = agentName.replace(/_/g, '-');
+      const chip = document.getElementById(`chip-${id}`);
+      if (chip) chip.className = 'agent-chip running';
+    }
+
+    function markAgentDone(agentName, latencyMs, status) {
+      const id = agentName.replace(/_/g, '-');
+      const chip = document.getElementById(`chip-${id}`);
+      if (chip) chip.className = `agent-chip ${status === 'error' ? 'error' : 'done'}`;
+      const lat = document.getElementById(`lat-${id}`);
+      if (lat) lat.textContent = latencyMs ? `${Math.round(latencyMs)}ms` : '';
+    }
+
+    /* =========================================================
+       SSE LOG HELPER
+    ========================================================= */
+    function appendSseLog(type, msg) {
+      const log = document.getElementById('sse-log');
+      const now = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'sse-entry';
+      entry.innerHTML = `
+        <span class="sse-time">${now}</span>
+        <span class="sse-type">[${type.toUpperCase()}]</span>
+        <span class="sse-msg">${escHtml(msg)}</span>
+      `;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    /* =========================================================
+       LOAD SAMPLE ISSUE
+    ========================================================= */
+    async function loadSampleIssue() {
+      try {
+        const data = await fetch(`${API}/api/v1/sample/issue`).then(r => r.json());
+        document.getElementById('f-repo').value    = data.repository   || '';
+        document.getElementById('f-type').value    = data.subject_type || 'issue';
+        document.getElementById('f-number').value  = data.subject_number || '';
+        document.getElementById('f-version').value = data.reported_version || '';
+        document.getElementById('f-title').value   = data.title || '';
+        document.getElementById('f-body').value    = data.body  || '';
+        showToast('Sample issue loaded — click "Start Triage Analysis"');
+      } catch {
+        showToast('Could not load sample — is the backend running?');
+      }
+    }
+
+    /* =========================================================
+       SUBMIT ANALYSIS
+    ========================================================= */
+    async function submitAnalysis() {
+      const repo    = document.getElementById('f-repo').value.trim();
+      const type    = document.getElementById('f-type').value;
+      const numRaw  = document.getElementById('f-number').value.trim();
+      const version = document.getElementById('f-version').value.trim();
+      const title   = document.getElementById('f-title').value.trim();
+      const body    = document.getElementById('f-body').value.trim();
+
+      if (!repo || !title) {
+        showToast('Repository and Title are required');
+        return;
+      }
+      if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) {
+        showToast('Repository must be in owner/name format');
+        return;
+      }
+
+      const payload = {
+        repository: repo, subject_type: type, title, body,
+        subject_number: numRaw ? parseInt(numRaw) : null,
+        reported_version: version || null,
+      };
+
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true;
+      document.getElementById('form-status').textContent = 'Submitting…';
+
+      try {
+        const r = await fetch(`${API}/api/v1/analyses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const { analysis_id } = await r.json();
+        document.getElementById('form-status').textContent = `Queued: ${analysis_id.slice(0, 8)}…`;
+        showToast(`Analysis started — ID: ${analysis_id.slice(0, 8)}…`);
+        startSSEStream(analysis_id);
+        loadAnalysesList();
+      } catch (e) {
+        document.getElementById('form-status').textContent = `Error: ${e.message}`;
+        showToast(`Submit failed: ${e.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    /* =========================================================
+       SSE STREAM
+    ========================================================= */
+    function startSSEStream(analysisId) {
+      if (activeEventSource) {
+        activeEventSource.close();
+      }
+
+      // Reset UI
+      resetAgentGrid();
+      document.getElementById('sse-log').innerHTML = '';
+      document.getElementById('pipeline-status-pill').textContent = 'STREAMING';
+      document.getElementById('pipeline-status-pill').style.color = 'var(--accent-cyan)';
+
+      appendSseLog('sse', `Connecting to pipeline events for ${analysisId.slice(0, 8)}…`);
+
+      const es = new EventSource(`${API}/api/v1/analyses/${analysisId}/events`);
+      activeEventSource = es;
+
+      es.addEventListener('analysis.status', e => {
+        const d = JSON.parse(e.data);
+        appendSseLog('status', `Analysis ${d.state}`);
+        document.getElementById('form-status').textContent = `State: ${d.state}`;
+      });
+
+      es.addEventListener('agent.run', e => {
+        const d = JSON.parse(e.data);
+        if (d.status === 'ok' || d.status === 'error') {
+          markAgentDone(d.agent, d.latency_ms, d.status);
+        } else {
+          markAgentRunning(d.agent);
+        }
+        appendSseLog('agent', `${d.agent} [${d.mode}] ${Math.round(d.latency_ms || 0)}ms — ${d.status}`);
+      });
+
+      es.addEventListener('workflow.done', e => {
+        const d = JSON.parse(e.data);
+        es.close();
+        activeEventSource = null;
+        document.getElementById('pipeline-status-pill').textContent = d.state.toUpperCase();
+        document.getElementById('pipeline-status-pill').style.color =
+          d.state === 'completed' ? 'var(--accent-emerald)' : 'var(--accent-red)';
+        appendSseLog('done', `Workflow ${d.state}`);
+        showToast(`Pipeline ${d.state} — loading results…`);
+        loadAnalysesList();
+        if (d.state === 'completed') loadReport(analysisId);
+      });
+
+      es.addEventListener('error', () => {
+        if (es.readyState === EventSource.CLOSED) return;
+        appendSseLog('err', 'SSE connection dropped');
+      });
+    }
+
+    /* =========================================================
+       ANALYSES LIST
+    ========================================================= */
+    async function loadAnalysesList() {
+      const container = document.getElementById('analyses-list');
+      try {
+        const { items } = await fetch(`${API}/api/v1/analyses`).then(r => r.json());
+        if (!items || items.length === 0) {
+          container.innerHTML = `<div class="glass-card" style="padding:24px;">
+            <div class="empty-state"><div class="empty-state-icon">🔬</div>No analyses yet. Submit one above!</div>
+          </div>`;
+          return;
+        }
+        container.innerHTML = items.map(item => {
+          const stateClass = `state-${item.state}`;
+          const ts = new Date(item.created_at).toLocaleString();
+          return `
+            <div class="glass-card analysis-row" onclick="selectAnalysis('${item.analysis_id}')">
+              <span class="analysis-state-badge ${stateClass}">${item.state}</span>
+              <div class="analysis-title">
+                <div class="analysis-title-text">${escHtml(item.title || '(untitled)')}</div>
+              </div>
+              <span class="analysis-meta">${item.analysis_id.slice(0, 8)}… · ${ts}</span>
+            </div>
+          `;
+        }).join('');
+        loadMetrics();
+      } catch {
+        container.innerHTML = `<div class="glass-card" style="padding:24px;">
+          <div class="empty-state"><div class="empty-state-icon">⚠</div>
+          Could not reach backend. Start: <code>python "triage_backend_ONE_FILE copy.py"</code></div>
+        </div>`;
+      }
+    }
+
+    async function selectAnalysis(analysisId) {
+      activeAnalysisId = analysisId;
+      document.getElementById('chat-analysis-pill').textContent = `Analysis: ${analysisId.slice(0, 8)}…`;
+      showToast(`Loading analysis ${analysisId.slice(0, 8)}…`);
+      await loadReport(analysisId);
+      document.getElementById('report').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    /* =========================================================
+       REPORT VIEWER
+    ========================================================= */
+    async function loadReport(analysisId) {
+      const panel = document.getElementById('report-panel');
+      panel.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div>Loading report…</div>`;
+
+      try {
+        // Load job info + claims + report in parallel
+        const [jobData, claimsData, reportData] = await Promise.all([
+          fetch(`${API}/api/v1/analyses/${analysisId}`).then(r => r.json()),
+          fetch(`${API}/api/v1/analyses/${analysisId}/claims`).then(r => r.json()),
+          fetch(`${API}/api/v1/analyses/${analysisId}/report?format=md`).then(r => r.json()).catch(() => null),
+        ]);
+
+        const stateClass = `state-${jobData.state}`;
+        const claimsHtml = (claimsData.items && claimsData.items.length)
+          ? `<table class="claims-table">
+              <thead><tr>
+                <th>#</th><th>Statement</th><th>Kind</th><th>Status</th><th>Confidence</th>
+              </tr></thead>
+              <tbody>
+                ${claimsData.items.map(c => `
+                  <tr>
+                    <td style="color:var(--text-sub)">${c.ordinal}</td>
+                    <td style="max-width:340px;font-size:12px">${escHtml((c.statement||'').slice(0, 120))}${c.statement.length > 120 ? '…' : ''}</td>
+                    <td><span class="status-text">${c.kind || '—'}</span></td>
+                    <td><span class="status-text">${c.status || '—'}</span></td>
+                    <td><span class="conf-badge conf-${c.confidence_band || 'low'}">${c.confidence_band || '—'}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>`
+          : `<div class="empty-state" style="padding:20px 0;">
+               <div class="empty-state-icon">🔍</div>
+               ${jobData.state === 'queued' || jobData.state === 'running'
+                 ? 'Analysis in progress — refresh when complete.'
+                 : 'No claims extracted yet.'}
+             </div>`;
+
+        const mdContent = reportData && reportData.report
+          ? `<div class="report-markdown">${escHtml(reportData.report)}</div>`
+          : `<div class="empty-state" style="padding:16px 0;">
+               <div class="empty-state-icon">📄</div>Report not ready yet.
+             </div>`;
+
+        panel.innerHTML = `
+          <div class="report-header">
+            <div class="report-title-group">
+              <div class="report-title">${escHtml(jobData.title || '(untitled)')}</div>
+              <div class="report-meta">
+                ID: ${analysisId.slice(0, 12)}… &nbsp;·&nbsp;
+                <span class="analysis-state-badge ${stateClass}" style="vertical-align:middle;">${jobData.state}</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;flex-shrink:0;">
+              <button class="glass-btn glass-btn-ghost" onclick="loadReport('${analysisId}')" style="font-size:12px;padding:8px 16px;">↻ Refresh</button>
+              <button class="glass-btn glass-btn-ghost" onclick="viewTrace('${analysisId}')" style="font-size:12px;padding:8px 16px;">📡 Trace</button>
+            </div>
+          </div>
+          <h4 style="font-size:13px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:12px;text-transform:uppercase;letter-spacing:.07em;">// CLAIMS &amp; VERDICTS</h4>
+          ${claimsHtml}
+          <h4 style="font-size:13px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:12px;margin-top:24px;text-transform:uppercase;letter-spacing:.07em;">// MARKDOWN REPORT</h4>
+          ${mdContent}
+        `;
+        activeAnalysisId = analysisId;
+        document.getElementById('chat-analysis-pill').textContent = `Analysis: ${analysisId.slice(0, 8)}…`;
+      } catch (e) {
+        panel.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div>Error loading report: ${escHtml(e.message)}</div>`;
+      }
+    }
+
+    async function viewTrace(analysisId) {
+      try {
+        const { agents } = await fetch(`${API}/api/v1/analyses/${analysisId}/trace`).then(r => r.json());
+        const panel = document.getElementById('report-panel');
+        const traceHtml = agents.length
+          ? agents.map(a => `
+              <div class="sse-entry" style="padding:4px 0;">
+                <span class="sse-time">${a.stage}</span>
+                <span class="sse-type">${a.agent}</span>
+                <span class="sse-msg">[${a.mode}] ${Math.round(a.latency_ms)}ms — ${a.status}</span>
+              </div>`).join('')
+          : '<div style="color:var(--text-sub);font-size:12px">No trace data yet.</div>';
+
+        // Insert trace above existing content
+        const traceBox = document.createElement('div');
+        traceBox.innerHTML = `
+          <h4 style="font-size:13px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:12px;text-transform:uppercase;letter-spacing:.07em;">// AGENT EXECUTION TRACE</h4>
+          <div class="sse-log" style="max-height:180px;">${traceHtml}</div>
+        `;
+        const header = panel.querySelector('.report-header');
+        if (header) header.after(traceBox);
+        showToast('Trace loaded');
+      } catch (e) {
+        showToast('Could not load trace');
+      }
+    }
+
+    /* =========================================================
+       CHAT ASSISTANT
+    ========================================================= */
+    async function sendChat() {
+      const input = document.getElementById('chat-input');
+      const question = input.value.trim();
+      if (!question) return;
+      if (!activeAnalysisId) {
+        showToast('Select an analysis first (click a row above)');
+        return;
+      }
+
+      const msgs = document.getElementById('chat-messages');
+
+      // Add user message
+      const userMsg = document.createElement('div');
+      userMsg.className = 'chat-msg user';
+      userMsg.textContent = question;
+      msgs.appendChild(userMsg);
+      input.value = '';
+      msgs.scrollTop = msgs.scrollHeight;
+
+      const btn = document.getElementById('btn-chat');
+      btn.disabled = true;
+
+      try {
+        const result = await fetch(`${API}/api/v1/assistant/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ analysis_id: activeAnalysisId, question }),
+        }).then(r => r.json());
+
+        const aMsg = document.createElement('div');
+        aMsg.className = 'chat-msg assistant';
+        aMsg.textContent = result.answer || '(no answer)';
+        msgs.appendChild(aMsg);
+
+        if (result.citations && result.citations.length) {
+          const cMsg = document.createElement('div');
+          cMsg.className = 'chat-msg system';
+          cMsg.textContent = `Citations: ${result.citations.join(', ')}`;
+          msgs.appendChild(cMsg);
+        }
+      } catch (e) {
+        const eMsg = document.createElement('div');
+        eMsg.className = 'chat-msg system';
+        eMsg.textContent = `Error: ${e.message}`;
+        msgs.appendChild(eMsg);
+      } finally {
+        btn.disabled = false;
+        msgs.scrollTop = msgs.scrollHeight;
+      }
+    }
+
+    // Allow Enter key in chat input
+    document.getElementById('chat-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+    });
+
+    /* =========================================================
+       INIT
+    ========================================================= */
+    // Init agent grid right away so the page is ready before boot dismissal
+    initAgentGrid();
+
+    // Poll health every 30s to keep status fresh
+    setInterval(checkBackendHealth, 30000);
+  </script>
+</body>
+
+</html>
+

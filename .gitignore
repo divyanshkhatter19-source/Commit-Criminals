@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+triage.db-shm
+triage.db-wal
+.DS_Store

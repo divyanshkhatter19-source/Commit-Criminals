@@ -1,0 +1,2299 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AETHERIA LUMEN // Spatial Intelligence Platform</title>
+
+  <!-- Plus Jakarta Sans, Syne & JetBrains Mono Fonts for ultra-refined typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <!-- Three.js for 3D Glass Refraction Caustics -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Anime.js for smooth tactile micro-interactions -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+
+  <style>
+    :root {
+      --bg-base: #06080e;
+      --glass-surface: rgba(255, 255, 255, 0.04);
+      --glass-surface-hover: rgba(255, 255, 255, 0.08);
+      --glass-surface-elevated: rgba(255, 255, 255, 0.07);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-border-light: rgba(255, 255, 255, 0.24);
+      --glass-highlight: rgba(255, 255, 255, 0.06);
+
+      --accent-cyan: #5de8e5;
+      --accent-violet: #a777ff;
+      --accent-emerald: #4eed99;
+      --text-main: #f4f6fc;
+      --text-muted: #949ab3;
+      --text-sub: #5f657d;
+
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-display: 'Syne', 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      --radius-sm: 8px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --radius-pill: 9999px;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+    }
+
+    /* -------------------------------------------------------------
+       LUMINESCENT CHROMATIC BACKGROUND AURORA (GLASSMORPHIC BACKDROP)
+    ------------------------------------------------------------- */
+    .aurora-container {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .aurora-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.55;
+      will-change: transform;
+    }
+
+    .orb-1 {
+      top: -10%;
+      left: 15%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(93, 232, 229, 0.35) 0%, rgba(93, 232, 229, 0) 70%);
+      animation: floatOrb1 20s infinite alternate ease-in-out;
+    }
+
+    .orb-2 {
+      top: 35%;
+      right: 5%;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(167, 119, 255, 0.3) 0%, rgba(167, 119, 255, 0) 70%);
+      animation: floatOrb2 24s infinite alternate ease-in-out;
+    }
+
+    .orb-3 {
+      bottom: -15%;
+      left: 25%;
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, rgba(78, 237, 153, 0.22) 0%, rgba(78, 237, 153, 0) 70%);
+      animation: floatOrb3 22s infinite alternate ease-in-out;
+    }
+
+    @keyframes floatOrb1 {
+      0% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      100% {
+        transform: translate(120px, 140px) scale(1.15);
+      }
+    }
+
+    @keyframes floatOrb2 {
+      0% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      100% {
+        transform: translate(-140px, -90px) scale(1.2);
+      }
+    }
+
+    @keyframes floatOrb3 {
+      0% {
+        transform: translate(0, 0) scale(1.1);
+      }
+
+      100% {
+        transform: translate(80px, -110px) scale(0.95);
+      }
+    }
+
+    /* Ambient noise & grid layer */
+    .bg-grid-overlay {
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.06) 1px, transparent 0);
+      background-size: 36px 36px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* 3D Canvas Container */
+    #hero-canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    /* Cursor Ambient Spotlight */
+    #glass-cursor-glow {
+      position: fixed;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 65%);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      transition: width 0.3s, height 0.3s;
+    }
+
+    /* -------------------------------------------------------------
+       CORE GLASSMORPHIC COMPONENT STYLES
+    ------------------------------------------------------------- */
+    .glass-card {
+      background: var(--glass-surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      box-shadow:
+        0 16px 40px -12px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .glass-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 255, 255, 0.08), transparent 40%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .glass-card:hover {
+      background: var(--glass-surface-hover);
+      border-color: var(--glass-border-light);
+      transform: translateY(-4px);
+      box-shadow:
+        0 24px 50px -10px rgba(0, 0, 0, 0.6),
+        0 0 25px rgba(93, 232, 229, 0.1),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+    }
+
+    .glass-card:hover::before {
+      opacity: 1;
+    }
+
+    .glass-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    .glass-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 24px;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      border: none;
+      outline: none;
+    }
+
+    .glass-btn-primary {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(220, 235, 255, 0.85));
+      color: #06080e;
+      box-shadow: 0 8px 24px -4px rgba(93, 232, 229, 0.35);
+      font-weight: 600;
+    }
+
+    .glass-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px -4px rgba(93, 232, 229, 0.6);
+      background: #ffffff;
+    }
+
+    .glass-btn-ghost {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: var(--text-main);
+      border: 1px solid var(--glass-border);
+    }
+
+    .glass-btn-ghost:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--glass-border-light);
+      transform: translateY(-2px);
+    }
+
+    /* -------------------------------------------------------------
+       3D HYPERACTIVE TERMINAL INTRO OVERLAY (CYBERNETIC BOOT STAGE)
+    ------------------------------------------------------------- */
+    #terminal-intro-stage {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: radial-gradient(circle at center, rgba(10, 14, 24, 0.96) 0%, rgba(4, 6, 12, 0.99) 100%);
+      backdrop-filter: blur(36px);
+      -webkit-backdrop-filter: blur(36px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      transition: all 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #terminal-intro-stage.boot-complete {
+      transform: translateY(-100%) scale(1.04);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .terminal-intro-box {
+      max-width: 780px;
+      width: 100%;
+      background: rgba(14, 20, 32, 0.82);
+      border: 1px solid rgba(93, 232, 229, 0.3);
+      border-radius: var(--radius-md);
+      box-shadow:
+        0 24px 60px -15px rgba(0, 0, 0, 0.85),
+        0 0 35px rgba(93, 232, 229, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      padding: 32px 36px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .terminal-intro-box::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-violet), transparent);
+      animation: scanBeam 2.5s infinite linear;
+    }
+
+    @keyframes scanBeam {
+      0% {
+        transform: translateX(-100%);
+      }
+
+      100% {
+        transform: translateX(100%);
+      }
+    }
+
+    .terminal-intro-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 14px;
+      margin-bottom: 22px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent-cyan);
+      letter-spacing: 0.1em;
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.red {
+      background: #ff5f56;
+    }
+
+    .terminal-dot.yellow {
+      background: #ffbd2e;
+    }
+
+    .terminal-dot.green {
+      background: #27c93f;
+    }
+
+    .terminal-stream-log {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #949ab3;
+      line-height: 1.7;
+      min-height: 160px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .terminal-stream-log .log-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transform: translateX(-8px);
+      transition: all 0.25s ease-out;
+    }
+
+    .terminal-stream-log .log-line.active {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .terminal-stream-log .tag-ok {
+      color: var(--accent-emerald);
+      font-weight: 600;
+    }
+
+    .terminal-stream-log .tag-warp {
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+
+    .terminal-stream-log .tag-core {
+      color: var(--accent-violet);
+      font-weight: 600;
+    }
+
+    .terminal-prompt-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 18px;
+    }
+
+    .kbd-shortcut {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-main);
+    }
+
+    /* -------------------------------------------------------------
+       PAGE LAYOUT WRAPPER (Z-INDEX 10)
+    ------------------------------------------------------------- */
+    .app-viewport {
+      position: relative;
+      z-index: 10;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Floating Navigation */
+    .floating-nav {
+      position: sticky;
+      top: 20px;
+      margin-top: 20px;
+      margin-bottom: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: rgba(14, 18, 28, 0.65);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-pill);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px rgba(93, 232, 229, 0.4);
+    }
+
+    .brand-mark svg {
+      width: 18px;
+      height: 18px;
+      fill: #06080e;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-title span {
+      color: var(--accent-cyan);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-main);
+    }
+
+    /* Hero Section */
+    .hero-section {
+      min-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 0 80px;
+    }
+
+    .hero-pill-badge {
+      margin-bottom: 24px;
+      border: 1px solid rgba(93, 232, 229, 0.3);
+      background: rgba(93, 232, 229, 0.08);
+      color: var(--accent-cyan);
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+      animation: pulseGlow 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseGlow {
+
+      0%,
+      100% {
+        transform: scale(0.9);
+        opacity: 0.6;
+      }
+
+      50% {
+        transform: scale(1.3);
+        opacity: 1;
+      }
+    }
+
+    .hero-heading {
+      font-family: var(--font-display);
+      font-size: clamp(40px, 6.2vw, 72px);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+      margin-bottom: 24px;
+      max-width: 920px;
+    }
+
+    .hero-heading .gradient-text {
+      background: linear-gradient(135deg, #ffffff 30%, var(--accent-cyan) 75%, var(--accent-violet) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-description {
+      font-size: clamp(16px, 1.8vw, 19px);
+      color: var(--text-muted);
+      max-width: 680px;
+      margin-bottom: 36px;
+      font-weight: 400;
+    }
+
+    /* Glass Early Access Input */
+    .hero-form-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px 6px 18px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-pill);
+      box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.5);
+      max-width: 480px;
+      width: 100%;
+      margin-bottom: 48px;
+      transition: border-color 0.25s ease;
+    }
+
+    .hero-form-box:focus-within {
+      border-color: rgba(93, 232, 229, 0.5);
+      box-shadow: 0 16px 40px -10px rgba(93, 232, 229, 0.2);
+    }
+
+    .hero-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 14px;
+    }
+
+    .hero-input::placeholder {
+      color: var(--text-sub);
+    }
+
+    /* Stat Banner Row */
+    .stat-banner {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      width: 100%;
+      margin-bottom: 100px;
+    }
+
+    .stat-card {
+      padding: 24px;
+      text-align: left;
+    }
+
+    .stat-val {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 4px;
+      font-family: var(--font-mono);
+      background: linear-gradient(135deg, #fff, var(--text-muted));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    /* Feature Grid */
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-tag {
+      font-family: var(--font-mono);
+      color: var(--accent-cyan);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+      display: inline-block;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 3.5vw, 44px);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-bottom: 110px;
+    }
+
+    .feature-card {
+      padding: 36px 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .feature-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.3);
+    }
+
+    .feature-icon-box svg {
+      width: 24px;
+      height: 24px;
+      stroke: var(--accent-cyan);
+    }
+
+    .feature-title {
+      font-size: 19px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Interactive Live Spatial Telemetry Console */
+    .telemetry-section {
+      margin-bottom: 120px;
+    }
+
+    .telemetry-console {
+      padding: 36px;
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 36px;
+      align-items: center;
+    }
+
+    .console-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+
+    .code-telemetry-box {
+      background: rgba(6, 8, 14, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .code-telemetry-box .kw {
+      color: var(--accent-violet);
+    }
+
+    .code-telemetry-box .fn {
+      color: var(--accent-cyan);
+    }
+
+    .code-telemetry-box .str {
+      color: var(--accent-emerald);
+    }
+
+    .code-telemetry-box .num {
+      color: #ffb86c;
+    }
+
+    /* Interactive Simulation Canvas / Sliders */
+    .sim-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .sim-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sim-row-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    .sim-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .sim-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px var(--accent-cyan);
+      cursor: pointer;
+    }
+
+    /* CTA Section */
+    .cta-banner {
+      padding: 60px 48px;
+      text-align: center;
+      margin-bottom: 100px;
+      background: linear-gradient(135deg, rgba(93, 232, 229, 0.08), rgba(167, 119, 255, 0.08));
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .cta-banner h2 {
+      font-family: var(--font-display);
+      font-size: clamp(32px, 4.2vw, 50px);
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      margin-bottom: 16px;
+    }
+
+    .cta-banner p {
+      font-size: 16px;
+      color: var(--text-muted);
+      max-width: 540px;
+      margin: 0 auto 32px;
+    }
+
+    /* Footer */
+    .glass-footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 40px 0 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--text-sub);
+    }
+
+    /* Toast */
+    #glass-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(14, 18, 28, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(93, 232, 229, 0.4);
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 10px 18px;
+      border-radius: var(--radius-pill);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .stat-banner {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .telemetry-console {
+        grid-template-columns: 1fr;
+      }
+
+      .nav-links {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Chromatic Aurora Glass Background Orbs -->
+  <div class="aurora-container">
+    <div class="aurora-orb orb-1"></div>
+    <div class="aurora-orb orb-2"></div>
+    <div class="aurora-orb orb-3"></div>
+  </div>
+
+  <div class="bg-grid-overlay"></div>
+  <div id="glass-cursor-glow"></div>
+  <div id="hero-canvas-container"></div>
+
+  <!-- 3D HYPERACTIVE INTRO TO DASHBOARD LIKE TERMINAL -->
+  <div id="terminal-intro-stage">
+    <div class="terminal-intro-box">
+      <div class="terminal-intro-head">
+        <div class="terminal-dots">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+        </div>
+        <span>AETHERIA_OS // BOOT_SEQUENCE: 0x9F4A</span>
+        <span>STATUS: WARP_READY</span>
+      </div>
+
+      <div class="terminal-stream-log" id="boot-log-container">
+        <div class="log-line" id="line-1"><span class="tag-core">[SYS_INIT]</span> Initializing 3D Hyperrealistic
+          Fractal Reactor...</div>
+        <div class="log-line" id="line-2"><span class="tag-warp">[SINGULARITY]</span> Engaging Tokamak magnetic
+          confinement rings (Toroid 1-3)...</div>
+        <div class="log-line" id="line-3"><span class="tag-ok">[BUFFER_OK]</span> Allocating GPU multi-depth
+          glassmorphic refraction textures...</div>
+        <div class="log-line" id="line-4"><span class="tag-core">[ISOLATION]</span> In-memory ephemeral key vault locked
+          into client RAM...</div>
+        <div class="log-line" id="line-5"><span class="tag-warp">[HYPERDRIVE]</span> Target spatial frequency
+          synchronized: 0.38x laminar flux.</div>
+        <div class="log-line" id="line-6"><span class="tag-ok">[READY]</span> Core ignition complete. Press ENTER to
+          mould into Dashboard.</div>
+      </div>
+
+      <div class="terminal-prompt-footer">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">Press</span>
+          <span class="kbd-shortcut">ENTER ↵</span>
+          <span style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">or click to breach
+            viewport</span>
+        </div>
+        <button class="glass-btn glass-btn-primary" id="btn-enter-terminal" style="padding: 10px 22px;">Ignite Dashboard
+          →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page Structure -->
+  <div class="app-viewport">
+
+    <!-- Floating Frosted Navigation -->
+    <header class="floating-nav">
+      <a href="#" class="brand-group">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+        <div class="brand-title">AETHERIA <span>LUMEN</span></div>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#features">Architecture</a></li>
+        <li><a href="#telemetry">Live Sim</a></li>
+        <li><a href="#metrics">Benchmarks</a></li>
+      </ul>
+
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <button class="glass-btn glass-btn-ghost" id="btn-download-page">↓ Export Single File</button>
+        <button class="glass-btn glass-btn-primary" id="btn-nav-demo">Launch Console</button>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="glass-pill hero-pill-badge">
+        <div class="pulse-dot"></div>
+        <span>GLASSMORPHISM V2.4 // SPATIAL ENGINE</span>
+      </div>
+
+      <h1 class="hero-heading">
+        Spatial Intelligence.<br>
+        <span class="gradient-text">Refracted Through Pure Glass.</span>
+      </h1>
+
+      <p class="hero-description">
+        Zero framework bloat. Translucent multi-depth glass layers, real-time 3D caustics, and memory-insulated
+        telemetry pipelines.
+      </p>
+
+      <form class="hero-form-box" id="early-access-form" onsubmit="event.preventDefault(); handleAccessSubmit();">
+        <input type="email" id="email-input" class="hero-input" placeholder="developer@enterprise.io" required>
+        <button type="submit" class="glass-btn glass-btn-primary" style="padding: 10px 20px;">Request Access</button>
+      </form>
+
+      <div style="display: flex; gap: 12px;">
+        <span class="glass-pill">GPU BACKDROP BLUR</span>
+        <span class="glass-pill">THREE.JS CAUSTICS</span>
+        <span class="glass-pill">RAM VAULT READY</span>
+      </div>
+    </section>
+
+    <!-- Key Metrics Stat Row -->
+    <div class="stat-banner" id="metrics">
+      <div class="glass-card stat-card">
+        <div class="stat-val" id="stat-latency">1.8 ms</div>
+        <div class="stat-label">P99 Engine Latency</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="stat-val">99.995%</div>
+        <div class="stat-label">Availability SLA</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="stat-val">1 FILE</div>
+        <div class="stat-label">Standalone Footprint</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="stat-val" id="stat-memory">0.0 MB</div>
+        <div class="stat-label">Disk Footprint / Leaks</div>
+      </div>
+    </div>
+
+    <!-- Feature Matrix -->
+    <section id="features" style="margin-bottom: 100px;">
+      <div class="section-header">
+        <span class="section-tag">// ARCHITECTURAL SPECIFICATIONS</span>
+        <h2 class="section-title">Designed with Crystalline Precision</h2>
+      </div>
+
+      <div class="features-grid">
+        <div class="glass-card feature-card">
+          <div>
+            <div class="feature-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
+            <h3 class="feature-title">Multi-Layer Depth Buffers</h3>
+            <p class="feature-desc">
+              Layered optical refraction utilizing GPU-accelerated backdrop filters, producing translucent surfaces that
+              dynamically adapt to underlying content.
+            </p>
+          </div>
+        </div>
+
+        <div class="glass-card feature-card">
+          <div>
+            <div class="feature-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </div>
+            <h3 class="feature-title">Sub-Millisecond Execution</h3>
+            <p class="feature-desc">
+              Zero dependency overhead. Standalone vanilla primitives communicate directly with your backend streaming
+              endpoints without mediation.
+            </p>
+          </div>
+        </div>
+
+        <div class="glass-card feature-card">
+          <div>
+            <div class="feature-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <h3 class="feature-title">Ephemeral Memory Vault</h3>
+            <p class="feature-desc">
+              API tokens and live keys stay locked in browser client-memory RAM, insulated from localStorage, cookies,
+              and network tracking beacons.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Telemetry Console -->
+    <section class="telemetry-section" id="telemetry">
+      <div class="glass-card telemetry-console">
+        <div>
+          <div class="console-header">
+            <span style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--accent-cyan);">
+              // LIVE TELEMETRY BRIDGE
+            </span>
+            <span class="glass-pill" id="sim-status-pill">STREAMING 60FPS</span>
+          </div>
+
+          <div class="code-telemetry-box" id="code-stream">
+            <div><span class="kw">const</span> engine = <span class="kw">new</span> <span
+                class="fn">AetheriaSpatialEngine</span>({</div>
+            <div style="padding-left: 18px;">opticalRefraction: <span class="str">"glassmorphism_v2"</span>,</div>
+            <div style="padding-left: 18px;">raymarchSteps: <span class="num" id="tele-steps">64</span>,</div>
+            <div style="padding-left: 18px;">targetFPS: <span class="num">60</span>,</div>
+            <div style="padding-left: 18px;">backendPipe: <span class="str">"wss://stream.aetheria.io"</span></div>
+            <div>});</div>
+            <div style="margin-top: 8px;"><span class="kw">await</span> engine.<span
+                class="fn">mountSpatialBuffer</span>();</div>
+          </div>
+        </div>
+
+        <div class="sim-controls">
+          <div class="sim-row">
+            <div class="sim-row-head">
+              <span>REFRACTION INDEX</span>
+              <span id="label-refract">1.45 η</span>
+            </div>
+            <input type="range" class="sim-slider" id="slider-refract" min="10" max="25" value="14">
+          </div>
+
+          <div class="sim-row">
+            <div class="sim-row-head">
+              <span>CORE OSCILLATION SPEED</span>
+              <span id="label-speed">0.4x</span>
+            </div>
+            <input type="range" class="sim-slider" id="slider-speed" min="1" max="20" value="4">
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 8px;">
+            <button class="glass-btn glass-btn-primary" id="btn-trigger-pulse" style="flex: 1;">Trigger Caustic
+              Pulse</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Glass Call To Action -->
+    <div class="glass-card cta-banner">
+      <h2>Build in Pure Light and Glass.</h2>
+      <p>Download the production-ready standalone source file with one click. No build tools required.</p>
+      <button class="glass-btn glass-btn-primary" id="btn-cta-export">Download Complete Source (.html)</button>
+    </div>
+
+    <!-- Minimalist Glass Footer -->
+    <footer class="glass-footer">
+      <div>© 2026 AETHERIA LUMEN. Glassmorphism Design System.</div>
+      <div style="display: flex; gap: 18px;">
+        <span class="glass-pill">SYSTEM STATUS: OPTIMAL</span>
+        <span class="glass-pill">P99: 1.8MS</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <div id="glass-toast">Notification Message</div>
+
+  <!-- Scripts -->
+  <script>
+    /* ==============================================================
+       0. HYPERACTIVE 3D TERMINAL INTRO BOOT SEQUENCE
+    ============================================================== */
+    const introStage = document.getElementById('terminal-intro-stage');
+    const btnEnter = document.getElementById('btn-enter-terminal');
+    const logLines = [
+      document.getElementById('line-1'),
+      document.getElementById('line-2'),
+      document.getElementById('line-3'),
+      document.getElementById('line-4'),
+      document.getElementById('line-5'),
+      document.getElementById('line-6')
+    ];
+
+    // Rapid typewriter stream for hyperactive terminal boot
+    logLines.forEach((line, idx) => {
+      setTimeout(() => {
+        if (line) line.classList.add('active');
+      }, 160 * (idx + 1));
+    });
+
+    let introDismissed = false;
+    function triggerHyperdriveTransition() {
+      if (introDismissed) return;
+      introDismissed = true;
+
+      // 3D Camera Warp & Caustic Surge
+      if (window._glassScene) {
+        anime({
+          targets: window._glassScene.heroGroup.position,
+          z: [18, 0],
+          duration: 950,
+          easing: 'easeOutExpo'
+        });
+
+        anime({
+          targets: window._glassScene.heroGroup.rotation,
+          z: [Math.PI, 0],
+          y: [Math.PI * 1.5, 0],
+          duration: 1100,
+          easing: 'easeOutCubic'
+        });
+
+        anime({
+          targets: window._glassScene.innerCore.scale,
+          x: [3.0, 1.0],
+          y: [3.0, 1.0],
+          z: [3.0, 1.0],
+          duration: 800,
+          easing: 'easeOutElastic(1, .6)'
+        });
+      }
+
+      // Elevate terminal stage out of view
+      introStage.classList.add('boot-complete');
+      showToast("WARP ENGAGED // Spatial Dashboard Online");
+    }
+
+    if (btnEnter) {
+      btnEnter.addEventListener('click', triggerHyperdriveTransition);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !introDismissed) {
+        triggerHyperdriveTransition();
+      }
+    });
+
+    // Reset button in nav demo
+    document.getElementById('btn-nav-demo').addEventListener('click', () => {
+      if (introDismissed) {
+        introDismissed = false;
+        introStage.classList.remove('boot-complete');
+        showToast("Session reset // Re-executing boot sequence");
+      }
+    });
+
+    /* ==============================================================
+       1. THREE.JS 3D HYPERREALISTIC FRACTAL REACTOR & GLASS SCENE
+    ============================================================== */
+    (function init3DGlassScene() {
+      const container = document.getElementById('hero-canvas-container');
+      if (!container || typeof THREE === 'undefined') return;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 0, 20);
+
+      const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      container.appendChild(renderer.domElement);
+
+      const heroGroup = new THREE.Group();
+      scene.add(heroGroup);
+
+      // ==========================================
+      // HERO MODE 1: 3D HYPERREALISTIC FRACTAL REACTOR
+      // ==========================================
+      const reactorGroup = new THREE.Group();
+      heroGroup.add(reactorGroup);
+
+      // Reactor Crystalline & Wireframe Materials
+      const coreSingularityMat = new THREE.MeshBasicMaterial({
+        color: 0x5de8e5,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.95
+      });
+      const midFractalMat = new THREE.MeshBasicMaterial({
+        color: 0xa777ff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.65
+      });
+      const outerLatticeMat = new THREE.MeshBasicMaterial({
+        color: 0x4eed99,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.45
+      });
+      const ringMat1 = new THREE.MeshBasicMaterial({
+        color: 0x5de8e5,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.55
+      });
+      const ringMat2 = new THREE.MeshBasicMaterial({
+        color: 0xa777ff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.45
+      });
+
+      // 1. Recursive Nested Fractal Core
+      const innerCore = new THREE.Mesh(new THREE.IcosahedronGeometry(2.2, 1), coreSingularityMat);
+      reactorGroup.add(innerCore);
+
+      const midCore = new THREE.Mesh(new THREE.DodecahedronGeometry(4.2, 1), midFractalMat);
+      reactorGroup.add(midCore);
+
+      const outerCore = new THREE.Mesh(new THREE.IcosahedronGeometry(6.4, 2), outerLatticeMat);
+      reactorGroup.add(outerCore);
+
+      // 2. Quantum Singularity Core Node Cloud
+      const sparksCount = 650;
+      const sparksGeo = new THREE.BufferGeometry();
+      const sparksPos = new Float32Array(sparksCount * 3);
+      for (let i = 0; i < sparksCount; i++) {
+        const u = Math.random();
+        const v = Math.random();
+        const theta = u * 2.0 * Math.PI;
+        const phi = Math.acos(2.0 * v - 1.0);
+        const r = Math.cbrt(Math.random()) * 3.4;
+        sparksPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        sparksPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+        sparksPos[i * 3 + 2] = r * Math.cos(phi);
+      }
+      sparksGeo.setAttribute('position', new THREE.BufferAttribute(sparksPos, 3));
+      const sparksMat = new THREE.PointsMaterial({
+        color: 0xf4f6fc,
+        size: 0.16,
+        transparent: true,
+        opacity: 0.95
+      });
+      const sparksPoints = new THREE.Points(sparksGeo, sparksMat);
+      reactorGroup.add(sparksPoints);
+
+      // 3. Multi-Axis Toroidal Magnetic Confinement Rings
+      const ring1 = new THREE.Mesh(new THREE.TorusGeometry(8.2, 0.2, 16, 90), ringMat1);
+      reactorGroup.add(ring1);
+
+      const ring2 = new THREE.Mesh(new THREE.TorusGeometry(9.8, 0.16, 16, 100), ringMat2);
+      ring2.rotation.x = Math.PI / 3;
+      reactorGroup.add(ring2);
+
+      const ring3 = new THREE.Mesh(new THREE.TorusGeometry(11.4, 0.12, 16, 110), ringMat1);
+      ring3.rotation.y = Math.PI / 4;
+      reactorGroup.add(ring3);
+
+      // 4. Orbital Satellites
+      const satGroup = new THREE.Group();
+      reactorGroup.add(satGroup);
+      const satCount = 6;
+      const satMeshes = [];
+      for (let s = 0; s < satCount; s++) {
+        const satMesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.65, 0), coreSingularityMat);
+        satGroup.add(satMesh);
+        satMeshes.push(satMesh);
+      }
+
+      // 5. Ambient Flux Vortex Particles
+      const fluxCount = 1200;
+      const fluxGeo = new THREE.BufferGeometry();
+      const fluxPos = new Float32Array(fluxCount * 3);
+      const fluxSpeeds = new Float32Array(fluxCount);
+      for (let f = 0; f < fluxCount; f++) {
+        const ang = Math.random() * Math.PI * 2;
+        const rad = 5 + Math.random() * 20;
+        fluxPos[f * 3] = Math.cos(ang) * rad;
+        fluxPos[f * 3 + 1] = (Math.random() - 0.5) * 12;
+        fluxPos[f * 3 + 2] = Math.sin(ang) * rad;
+        fluxSpeeds[f] = 0.006 + Math.random() * 0.012;
+      }
+      fluxGeo.setAttribute('position', new THREE.BufferAttribute(fluxPos, 3));
+      const fluxPoints = new THREE.Points(fluxGeo, new THREE.PointsMaterial({
+        color: 0x5de8e5,
+        size: 0.12,
+        transparent: true,
+        opacity: 0.6
+      }));
+      reactorGroup.add(fluxPoints);
+
+      // Mouse Parallax
+      let mouseX = 0;
+      let mouseY = 0;
+      window.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+        mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+      });
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // Simulation hook parameters (Graceful, majestic slow rotation by default)
+      window._glassScene = {
+        speed: 0.38,
+        heroGroup,
+        innerCore,
+        sparksPoints
+      };
+
+      const clock = new THREE.Clock();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const delta = clock.getDelta();
+        const t = clock.getElapsedTime() * window._glassScene.speed;
+
+        // Subtle mouse gyroscopic tilt (gentle damping)
+        heroGroup.rotation.y += (mouseX * 0.22 - heroGroup.rotation.y) * 0.03;
+        heroGroup.rotation.x += (-mouseY * 0.16 - heroGroup.rotation.x) * 0.03;
+
+        // ANIMATE FRACTAL REACTOR (Calibrated for hypnotic, smooth, slow motion)
+        innerCore.rotation.y = t * 0.55;
+        innerCore.rotation.x = t * 0.35;
+        const pulse = 1 + Math.sin(t * 1.5) * 0.08;
+        innerCore.scale.set(pulse, pulse, pulse);
+
+        midCore.rotation.y = -t * 0.28;
+        midCore.rotation.z = t * 0.36;
+
+        outerCore.rotation.x = t * 0.16;
+        outerCore.rotation.y = t * 0.20;
+
+        ring1.rotation.z = t * 0.24;
+        ring1.rotation.x = Math.sin(t * 0.18) * 0.4;
+
+        ring2.rotation.x = (Math.PI / 3) + t * 0.30;
+        ring2.rotation.y = Math.cos(t * 0.22) * 0.45;
+
+        ring3.rotation.y = (Math.PI / 4) - t * 0.35;
+        ring3.rotation.z = Math.sin(t * 0.26) * 0.3;
+
+        for (let s = 0; s < satCount; s++) {
+          const angle = t * 0.45 + (s * (Math.PI * 2 / satCount));
+          const satDist = 7.2 + Math.sin(t * 0.8 + s) * 0.6;
+          satMeshes[s].position.set(
+            Math.cos(angle) * satDist,
+            Math.sin(angle * 2) * 1.3,
+            Math.sin(angle) * satDist
+          );
+          satMeshes[s].rotation.x += 0.012;
+          satMeshes[s].rotation.y += 0.018;
+        }
+
+        sparksPoints.rotation.y = -t * 0.45;
+        const sparkPulse = 1 + Math.sin(t * 1.8) * 0.05;
+        sparksPoints.scale.set(sparkPulse, sparkPulse, sparkPulse);
+
+        // Vortex particle flow (smooth, gentle orbital drift)
+        const fArr = fluxPoints.geometry.attributes.position.array;
+        for (let f = 0; f < fluxCount; f++) {
+          const px = fArr[f * 3];
+          const pz = fArr[f * 3 + 2];
+          const spd = fluxSpeeds[f] * 0.35;
+          fArr[f * 3] = px * Math.cos(spd) - pz * Math.sin(spd);
+          fArr[f * 3 + 2] = px * Math.sin(spd) + pz * Math.cos(spd);
+          fArr[f * 3 + 1] += Math.sin(t * 0.5 + f) * 0.005;
+        }
+        fluxPoints.geometry.attributes.position.needsUpdate = true;
+
+        renderer.render(scene, camera);
+      }
+
+      animate();
+    })();
+
+    /* ==============================================================
+       2. TACTILE MOUSE CARD GLOW & SPOTLIGHT
+    ============================================================== */
+    const cursorGlow = document.getElementById('glass-cursor-glow');
+    window.addEventListener('mousemove', (e) => {
+      cursorGlow.style.left = `${e.clientX}px`;
+      cursorGlow.style.top = `${e.clientY}px`;
+
+      // Update specular position on glass cards
+      document.querySelectorAll('.glass-card').forEach(card => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        card.style.setProperty('--mouse-x', `${x}px`);
+        card.style.setProperty('--mouse-y', `${y}px`);
+      });
+    });
+
+    /* ==============================================================
+       3. INTERACTIVE TELEMETRY CONTROLS
+    ============================================================== */
+    const sliderRefract = document.getElementById('slider-refract');
+    const sliderSpeed = document.getElementById('slider-speed');
+    const labelRefract = document.getElementById('label-refract');
+    const labelSpeed = document.getElementById('label-speed');
+    const teleSteps = document.getElementById('tele-steps');
+
+    sliderRefract.addEventListener('input', (e) => {
+      const val = (e.target.value / 10).toFixed(2);
+      labelRefract.textContent = `${val} η`;
+      teleSteps.textContent = Math.round(e.target.value * 4);
+    });
+
+    sliderSpeed.addEventListener('input', (e) => {
+      const val = (e.target.value / 10).toFixed(1);
+      labelSpeed.textContent = `${val}x`;
+      if (window._glassScene) {
+        window._glassScene.speed = parseFloat(val);
+      }
+    });
+
+    // Caustic Pulse Trigger
+    document.getElementById('btn-trigger-pulse').addEventListener('click', () => {
+      if (typeof anime !== 'undefined' && window._glassScene) {
+        anime({
+          targets: window._glassScene.heroGroup.scale,
+          x: [1.2, 1.0],
+          y: [1.2, 1.0],
+          z: [1.2, 1.0],
+          duration: 700,
+          easing: 'easeOutElastic(1, .5)'
+        });
+        showToast("Caustic pulse propagated across glass buffer");
+      }
+    });
+
+    /* ==============================================================
+       4. INTERACTION TOAST & ACCESS SUBMISSION
+    ============================================================== */
+    function showToast(msg) {
+      const toast = document.getElementById('glass-toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      anime({
+        targets: toast,
+        opacity: [0, 1],
+        translateY: [20, 0],
+        duration: 300,
+        easing: 'easeOutQuad'
+      });
+      setTimeout(() => {
+        anime({
+          targets: toast,
+          opacity: [1, 0],
+          duration: 300,
+          easing: 'easeInQuad',
+          complete: () => { toast.style.display = 'none'; }
+        });
+      }, 2400);
+    }
+
+    function handleAccessSubmit() {
+      const email = document.getElementById('email-input').value;
+      if (email) {
+        showToast(`Access granted for ${email}`);
+        document.getElementById('email-input').value = "";
+      }
+    }
+
+    document.getElementById('btn-nav-demo').addEventListener('click', () => {
+      showToast("Spatial Console initialized in active viewport");
+    });
+
+    /* ==============================================================
+       5. ONE-CLICK STANDALONE FILE EXPORTER
+    ============================================================== */
+    function exportPage() {
+      const fullHtml = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+      const blob = new Blob([fullHtml], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "aetheria-lumen-glassmorphism.html";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("Exported standalone Glassmorphism landing page");
+    }
+
+    document.getElementById('btn-download-page').addEventListener('click', exportPage);
+    document.getElementById('btn-cta-export').addEventListener('click', exportPage);
+  </script>
+</body>
+
+</html>
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AETHERIA LUMEN // Spatial Intelligence Platform</title>
+
+  <!-- Plus Jakarta Sans, Syne & JetBrains Mono Fonts for ultra-refined typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <!-- Three.js for 3D Glass Refraction Caustics -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Anime.js for smooth tactile micro-interactions -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+
+  <style>
+    :root {
+      --bg-base: #06080e;
+      --glass-surface: rgba(255, 255, 255, 0.04);
+      --glass-surface-hover: rgba(255, 255, 255, 0.08);
+      --glass-surface-elevated: rgba(255, 255, 255, 0.07);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-border-light: rgba(255, 255, 255, 0.24);
+      --glass-highlight: rgba(255, 255, 255, 0.06);
+
+      --accent-cyan: #5de8e5;
+      --accent-violet: #a777ff;
+      --accent-emerald: #4eed99;
+      --text-main: #f4f6fc;
+      --text-muted: #949ab3;
+      --text-sub: #5f657d;
+
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-display: 'Syne', 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      --radius-sm: 8px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --radius-pill: 9999px;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+    }
+
+    /* -------------------------------------------------------------
+       LUMINESCENT CHROMATIC BACKGROUND AURORA (GLASSMORPHIC BACKDROP)
+    ------------------------------------------------------------- */
+    .aurora-container {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .aurora-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.55;
+      will-change: transform;
+    }
+
+    .orb-1 {
+      top: -10%;
+      left: 15%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(93, 232, 229, 0.35) 0%, rgba(93, 232, 229, 0) 70%);
+      animation: floatOrb1 20s infinite alternate ease-in-out;
+    }
+
+    .orb-2 {
+      top: 35%;
+      right: 5%;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(167, 119, 255, 0.3) 0%, rgba(167, 119, 255, 0) 70%);
+      animation: floatOrb2 24s infinite alternate ease-in-out;
+    }
+
+    .orb-3 {
+      bottom: -15%;
+      left: 25%;
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, rgba(78, 237, 153, 0.22) 0%, rgba(78, 237, 153, 0) 70%);
+      animation: floatOrb3 22s infinite alternate ease-in-out;
+    }
+
+    @keyframes floatOrb1 {
+      0% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      100% {
+        transform: translate(120px, 140px) scale(1.15);
+      }
+    }
+
+    @keyframes floatOrb2 {
+      0% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      100% {
+        transform: translate(-140px, -90px) scale(1.2);
+      }
+    }
+
+    @keyframes floatOrb3 {
+      0% {
+        transform: translate(0, 0) scale(1.1);
+      }
+
+      100% {
+        transform: translate(80px, -110px) scale(0.95);
+      }
+    }
+
+    /* Ambient noise & grid layer */
+    .bg-grid-overlay {
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.06) 1px, transparent 0);
+      background-size: 36px 36px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* 3D Canvas Container */
+    #hero-canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    /* Cursor Ambient Spotlight */
+    #glass-cursor-glow {
+      position: fixed;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 65%);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      transition: width 0.3s, height 0.3s;
+    }
+
+    /* -------------------------------------------------------------
+       CORE GLASSMORPHIC COMPONENT STYLES
+    ------------------------------------------------------------- */
+    .glass-card {
+      background: var(--glass-surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      box-shadow:
+        0 16px 40px -12px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .glass-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 255, 255, 0.08), transparent 40%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .glass-card:hover {
+      background: var(--glass-surface-hover);
+      border-color: var(--glass-border-light);
+      transform: translateY(-4px);
+      box-shadow:
+        0 24px 50px -10px rgba(0, 0, 0, 0.6),
+        0 0 25px rgba(93, 232, 229, 0.1),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+    }
+
+    .glass-card:hover::before {
+      opacity: 1;
+    }
+
+    .glass-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    .glass-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 24px;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      border: none;
+      outline: none;
+    }
+
+    .glass-btn-primary {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(220, 235, 255, 0.85));
+      color: #06080e;
+      box-shadow: 0 8px 24px -4px rgba(93, 232, 229, 0.35);
+      font-weight: 600;
+    }
+
+    .glass-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px -4px rgba(93, 232, 229, 0.6);
+      background: #ffffff;
+    }
+
+    .glass-btn-ghost {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: var(--text-main);
+      border: 1px solid var(--glass-border);
+    }
+
+    .glass-btn-ghost:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--glass-border-light);
+      transform: translateY(-2px);
+    }
+
+    /* -------------------------------------------------------------
+       3D HYPERACTIVE TERMINAL INTRO OVERLAY (CYBERNETIC BOOT STAGE)
+    ------------------------------------------------------------- */
+    #terminal-intro-stage {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: radial-gradient(circle at center, rgba(10, 14, 24, 0.96) 0%, rgba(4, 6, 12, 0.99) 100%);
+      backdrop-filter: blur(36px);
+      -webkit-backdrop-filter: blur(36px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      transition: all 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #terminal-intro-stage.boot-complete {
+      transform: translateY(-100%) scale(1.04);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .terminal-intro-box {
+      max-width: 780px;
+      width: 100%;
+      background: rgba(14, 20, 32, 0.82);
+      border: 1px solid rgba(93, 232, 229, 0.3);
+      border-radius: var(--radius-md);
+      box-shadow:
+        0 24px 60px -15px rgba(0, 0, 0, 0.85),
+        0 0 35px rgba(93, 232, 229, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      padding: 32px 36px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .terminal-intro-box::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-violet), transparent);
+      animation: scanBeam 2.5s infinite linear;
+    }
+
+    @keyframes scanBeam {
+      0% {
+        transform: translateX(-100%);
+      }
+
+      100% {
+        transform: translateX(100%);
+      }
+    }
+
+    .terminal-intro-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 14px;
+      margin-bottom: 22px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent-cyan);
+      letter-spacing: 0.1em;
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.red {
+      background: #ff5f56;
+    }
+
+    .terminal-dot.yellow {
+      background: #ffbd2e;
+    }
+
+    .terminal-dot.green {
+      background: #27c93f;
+    }
+
+    .terminal-stream-log {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #949ab3;
+      line-height: 1.7;
+      min-height: 160px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .terminal-stream-log .log-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transform: translateX(-8px);
+      transition: all 0.25s ease-out;
+    }
+
+    .terminal-stream-log .log-line.active {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .terminal-stream-log .tag-ok {
+      color: var(--accent-emerald);
+      font-weight: 600;
+    }
+
+    .terminal-stream-log .tag-warp {
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+
+    .terminal-stream-log .tag-core {
+      color: var(--accent-violet);
+      font-weight: 600;
+    }
+
+    .terminal-prompt-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 18px;
+    }
+
+    .kbd-shortcut {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-main);
+    }
+
+    /* -------------------------------------------------------------
+       PAGE LAYOUT WRAPPER (Z-INDEX 10)
+    ------------------------------------------------------------- */
+    .app-viewport {
+      position: relative;
+      z-index: 10;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Floating Navigation */
+    .floating-nav {
+      position: sticky;
+      top: 20px;
+      margin-top: 20px;
+      margin-bottom: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: rgba(14, 18, 28, 0.65);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-pill);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px rgba(93, 232, 229, 0.4);
+    }
+
+    .brand-mark svg {
+      width: 18px;
+      height: 18px;
+      fill: #06080e;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-title span {
+      color: var(--accent-cyan);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-main);
+    }
+
+    /* Hero Section */
+    .hero-section {
+      min-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 0 80px;
+    }
+
+    .hero-pill-badge {
+      margin-bottom: 24px;
+      border: 1px solid rgba(93, 232, 229, 0.3);
+      background: rgba(93, 232, 229, 0.08);
+      color: var(--accent-cyan);
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+      animation: pulseGlow 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseGlow {
+
+      0%,
+      100% {
+        transform: scale(0.9);
+        opacity: 0.6;
+      }
+
+      50% {
+        transform: scale(1.3);
+        opacity: 1;
+      }
+    }
+
+    .hero-heading {
+      font-family: var(--font-display);
+      font-size: clamp(40px, 6.2vw, 72px);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+      margin-bottom: 24px;
+      max-width: 920px;
+    }
+
+    .hero-heading .gradient-text {
+      background: linear-gradient(135deg, #ffffff 30%, var(--accent-cyan) 75%, var(--accent-violet) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-description {
+      font-size: clamp(16px, 1.8vw, 19px);
+      color: var(--text-muted);
+      max-width: 680px;
+      margin-bottom: 36px;
+      font-weight: 400;
+    }
+
+    /* Glass Early Access Input */
+    .hero-form-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px 6px 18px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-pill);
+      box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.5);
+      max-width: 480px;
+      width: 100%;
+      margin-bottom: 48px;
+      transition: border-color 0.25s ease;
+    }
+
+    .hero-form-box:focus-within {
+      border-color: rgba(93, 232, 229, 0.5);
+      box-shadow: 0 16px 40px -10px rgba(93, 232, 229, 0.2);
+    }
+
+    .hero-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 14px;
+    }
+
+    .hero-input::placeholder {
+      color: var(--text-sub);
+    }
+
+    /* Stat Banner Row */
+    .stat-banner {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      width: 100%;
+      margin-bottom: 100px;
+    }
+
+    .stat-card {
+      padding: 24px;
+      text-align: left;
+    }
+
+    .stat-val {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 4px;
+      font-family: var(--font-mono);
+      background: linear-gradient(135deg, #fff, var(--text-muted));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    /* Feature Grid */
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-tag {
+      font-family: var(--font-mono);
+      color: var(--accent-cyan);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+      display: inline-block;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 3.5vw, 44px);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-bottom: 110px;
+    }
+
+    .feature-card {
+      padding: 36px 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .feature-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.3);
+    }
+
+    .feature-icon-box svg {
+      width: 24px;
+      height: 24px;
+      stroke: var(--accent-cyan);
+    }
+
+    .feature-title {
+      font-size: 19px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Interactive Live Spatial Telemetry Console */
+    .telemetry-section {
+      margin-bottom: 120px;
+    }
+
+    .telemetry-console {
+      padding: 36px;
+      display: g
