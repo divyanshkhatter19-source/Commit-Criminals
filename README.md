@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Evidence-Based Triage Backend — one-file package
 
 One self-contained file — `triage_backend_ONE_FILE.py` — that is the entire
@@ -103,3 +104,7 @@ next to the backend file — copy it to `.env` and fill in only what you use:
   no label writes.
 - The system never judges whether an issue author is human or AI.
 - Human feedback is recorded, never silently applied.
+=======
+# Commit-Criminals
+This is an AI-powered tool that verifies GitHub issues and pull requests against actual source code and documentation, highlighting evidence, inconsistencies, and missing information to help open-source maintainers make faster, more informed decisions.
+>>>>>>> 779c8931701bb123d0369ade6775a399f7d89cd7
